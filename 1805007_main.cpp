@@ -12,6 +12,9 @@ int number_of_objects;
 int number_of_point_light_sources;
 int number_of_spot_light_sources;
 
+double floorWidth;
+double tileWidth;
+
 // declaration
 
 extern vector<Object *> objects;
@@ -74,7 +77,22 @@ void loadData() {
         spotLights.push_back(spotLight);
     }
 
+    // Floor
+
+    floorWidth = 1000;
+    tileWidth = 20;
+
+    Object *floor = new Floor(floorWidth, tileWidth);
+    // setColor
+    // setCoEfficients
+    // setShine
+    objects.push_back(floor);
+
     ifs.close(); 
+}
+
+void capture() {
+    // implement
 }
 
 int main(int argc, char *argv[]) {
