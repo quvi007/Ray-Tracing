@@ -97,7 +97,7 @@ void capture() {
 
 int main(int argc, char *argv[]) {
     loadData();
-    Vector3D A(60, 30, 20);
+    Vector3D A(42.67, 1.12, 8.45);
     Vector3D B(30, -20, 0);
     cout << objects[0]->intersect(Ray(A, B - A), Color(1, 1, 1), 0);
     cout << "\n";
