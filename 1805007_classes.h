@@ -62,10 +62,41 @@ public:
 
 class Color {
 private:
+    double r, g, b;
+    
     friend istream &operator>>(istream &is, Color &color);
     friend ostream &operator<<(ostream &is, const Color &color);
 public:
-    double r, g, b;
+    Color() {}
+    Color(double r, double g, double b) {
+        this->r = r;
+        this->g = g;
+        this->b = b;
+    }
+
+    void setR(double r) {
+        this->r = r;
+    }
+
+    void setG(double g) {
+        this->g = g;
+    }
+
+    void setB(double b) {
+        this->b = b;
+    }
+
+    double getR() const {
+        return r;
+    }
+
+    double getG() const {
+        return g;
+    }
+
+    double getB() const {
+        return b;
+    }
 };
 
 class CoEfficients {
@@ -77,6 +108,40 @@ public:
     double diffuse;
     double specular;
     double reflection;
+};
+
+class Ray {
+private:
+    Vector3D start;
+    Vector3D dir; // normalize for easier calculation
+
+    friend istream &operator>>(istream &is, Ray &ray);
+    friend ostream &operator<<(ostream &os, const Ray &ray);
+public:
+    Ray() {} 
+    Ray(const Vector3D &start, const Vector3D &dir) {
+        this->start = start;
+        this->dir = dir;
+        double mag = sqrt(Vector3D::dot(dir, dir));
+        if (mag > 0)
+            this->dir = this->dir * (1/mag);
+    }
+
+    void setStart(const Vector3D &start) {
+        this->start = start;
+    }
+
+    void setDir(const Vector3D &dir) {
+        this->dir = dir;
+    }
+
+    Vector3D getStart() const {
+        return start;
+    }
+
+    Vector3D getDir() const {
+        return dir;
+    }
 };
 
 class Object {
@@ -176,6 +241,7 @@ public:
 
     double intersect(const Ray &ray, const Color &color, int level) {
         // implement
+        return -1.0;
     }
 };
 
@@ -191,6 +257,7 @@ public:
 
     double intersect(const Ray &ray, const Color &color, int level) {
         // implement
+        return -1.0;
     }
 };
 
@@ -277,37 +344,6 @@ public:
     }
     void draw() {
         // write code
-    }
-};
-
-class Ray {
-private:
-    Vector3D start;
-    Vector3D dir; // normalize for easier calculation
-
-    friend istream &operator>>(istream &is, Ray &ray);
-    friend ostream &operator<<(ostream &os, const Ray &ray);
-public:
-    Ray() {} 
-    Ray(const Vector3D &start, const Vector3D &dir) {
-        this->start = start;
-        this->dir = dir;
-    }
-
-    void setStart(const Vector3D &start) {
-        this->start = start;
-    }
-
-    void setDir(const Vector3D &dir) {
-        this->dir = dir;
-    }
-
-    Vector3D getStart() const {
-        return start;
-    }
-
-    Vector3D getDir() const {
-        return dir;
     }
 };
 

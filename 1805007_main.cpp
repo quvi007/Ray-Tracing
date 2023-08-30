@@ -3,7 +3,7 @@ using namespace std;
 
 #include "1805007_classes.h"
 
-string scene_file = "scene.txt";
+string scene_file = "scene_test.txt";
 
 int level_of_recursion;
 int dimension;
@@ -17,9 +17,9 @@ double tileWidth;
 
 // declaration
 
-extern vector<Object *> objects;
-extern vector<PointLight *> pointLights;
-extern vector<SpotLight *> spotLights;
+vector<Object *> objects;
+vector<PointLight *> pointLights;
+vector<SpotLight *> spotLights;
 
 void loadData() {
     ifstream ifs(scene_file);
@@ -53,40 +53,40 @@ void loadData() {
         }
     }
 
-    ifs >> number_of_point_light_sources;
-    for (int i = 0; i < number_of_point_light_sources; ++i) {
-        Vector3D lightPos;
-        Color color;
+    // ifs >> number_of_point_light_sources;
+    // for (int i = 0; i < number_of_point_light_sources; ++i) {
+    //     Vector3D lightPos;
+    //     Color color;
         
-        ifs >> lightPos;
-        ifs >> color;
+    //     ifs >> lightPos;
+    //     ifs >> color;
 
-        PointLight *pointLight = new PointLight(lightPos, color);
-        pointLights.push_back(pointLight);
-    }
+    //     PointLight *pointLight = new PointLight(lightPos, color);
+    //     pointLights.push_back(pointLight);
+    // }
 
-    ifs >> number_of_spot_light_sources;
-    for (int i = 0; i < number_of_spot_light_sources; ++i) {
-        PointLight pointLight;
-        Vector3D lightDirection;
-        double cutoffAngle;
+    // ifs >> number_of_spot_light_sources;
+    // for (int i = 0; i < number_of_spot_light_sources; ++i) {
+    //     PointLight pointLight;
+    //     Vector3D lightDirection;
+    //     double cutoffAngle;
 
-        ifs >> pointLight >> lightDirection >> cutoffAngle;
+    //     ifs >> pointLight >> lightDirection >> cutoffAngle;
 
-        SpotLight *spotLight = new SpotLight(pointLight, lightDirection, cutoffAngle);
-        spotLights.push_back(spotLight);
-    }
+    //     SpotLight *spotLight = new SpotLight(pointLight, lightDirection, cutoffAngle);
+    //     spotLights.push_back(spotLight);
+    // }
 
     // Floor
 
-    floorWidth = 1000;
-    tileWidth = 20;
+    // floorWidth = 1000;
+    // tileWidth = 20;
 
-    Object *floor = new Floor(floorWidth, tileWidth);
-    // setColor
-    // setCoEfficients
-    // setShine
-    objects.push_back(floor);
+    // Object *floor = new Floor(floorWidth, tileWidth);
+    // // setColor
+    // // setCoEfficients
+    // // setShine
+    // objects.push_back(floor);
 
     ifs.close(); 
 }
@@ -96,6 +96,10 @@ void capture() {
 }
 
 int main(int argc, char *argv[]) {
-    // loadData();
-    return 0;   
+    loadData();
+    Vector3D A(60, 30, 20);
+    Vector3D B(30, -20, 0);
+    cout << objects[0]->intersect(Ray(A, B - A), Color(1, 1, 1), 0);
+    cout << "\n";
+    return 0;
 }
