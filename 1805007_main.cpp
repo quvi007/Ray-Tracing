@@ -6,15 +6,16 @@ using namespace std;
 
 string scene_file = "scene_test.txt";
 
+double nearDistance, farDistance;
+double fovY;
+double aspectRatio;
+
 int level_of_recursion;
 int dimension;
 
 int number_of_objects;
 int number_of_point_light_sources;
 int number_of_spot_light_sources;
-
-double floorWidth, tileWidth;
-
 // declaration
 
 vector<Object *> objects;
@@ -23,8 +24,18 @@ vector<SpotLight *> spotLights;
 
 void loadData() {
     ifstream ifs(scene_file);
+
+    ifs >> nearDistance >> farDistance >> fovY >> aspectRatio;
+    
     ifs >> level_of_recursion;
     ifs >> dimension;
+
+    double tileWidth;
+    double floorAmbientCoEff, floorDiffuseCoEff, floorReflectionCoEff;
+    ifs >> tileWidth >> floorAmbientCoEff >> floorDiffuseCoEff >> floorReflectionCoEff;
+    Object *floor = new Floor(1000, tileWidth);
+    floor->setCoEfficients(CoEfficients(floorAmbientCoEff, floorDiffuseCoEff, 0, floorReflectionCoEff));
+    objects.push_back(floor);
     
     ifs >> number_of_objects;
     for (int i = 0; i < number_of_objects; ++i) {
@@ -46,35 +57,47 @@ void loadData() {
             sphere->setShine(shine);
 
             objects.push_back(sphere);
-        } else if (obj_type == "triangle") {
-            Vector3D p1, p2, p3;
+        } else if (obj_type == "pyramid") {
+            Vector3D lowest_point;
+            double width;
+            double height;
             Color color;
             CoEfficients coEfficients;
             int shine;
-            ifs >> p1 >> p2 >> p3 >> color >> coEfficients >> shine;
+            ifs >> lowest_point >> width >> height >> color >> coEfficients >> shine;
 
-            Object *triangle = new Triangle(p1, p2, p3);
-            triangle->setColor(color);
-            triangle->setCoEfficients(coEfficients);
-            triangle->setShine(shine);
+            Object *pyramid = new Pyramid(lowest_point, width, height);
+            pyramid->setColor(color);
+            pyramid->setCoEfficients(coEfficients);
+            pyramid->setShine(shine);
 
-            objects.push_back(triangle);
-        } else if (obj_type == "general") {
+            objects.push_back(pyramid);
+        } else if (obj_type == "cube") {
+            Vector3D bottom_lower_left_point;
+            double side;
+            Color color;
+            CoEfficients coEfficients;
+            int shine;
+            ifs >> bottom_lower_left_point >> side >> color >> coEfficients >> shine;
 
+            Object *cube = new Cube(bottom_lower_left_point, side);
+            cube->setColor(color);
+            cube->setCoEfficients(coEfficients);
+            cube->setShine(shine);
+
+            objects.push_back(cube);
         }
     }
 
-    // ifs >> number_of_point_light_sources;
-    // for (int i = 0; i < number_of_point_light_sources; ++i) {
-    //     Vector3D lightPos;
-    //     Color color;
-        
-    //     ifs >> lightPos;
-    //     ifs >> color;
+    ifs >> number_of_point_light_sources;
+    for (int i = 0; i < number_of_point_light_sources; ++i) {
+        Vector3D lightPos;
+        double falloffParameter;
+        ifs >> lightPos >> falloffParameter;
 
-    //     PointLight *pointLight = new PointLight(lightPos, color);
-    //     pointLights.push_back(pointLight);
-    // }
+        PointLight *pointLight = new PointLight(lightPos, falloffParameter);
+        pointLights.push_back(pointLight);
+    }
 
     // ifs >> number_of_spot_light_sources;
     // for (int i = 0; i < number_of_spot_light_sources; ++i) {
@@ -88,25 +111,17 @@ void loadData() {
     //     spotLights.push_back(spotLight);
     // }
 
-    // Floor
-
-    floorWidth = 1000;
-    tileWidth = 20;
-
-    Object *floor = new Floor(floorWidth, tileWidth);
-    // setColor
-    // setCoEfficients
-    // setShine
-    objects.push_back(floor);
-
     ifs.close(); 
 }
 
 void capture() {
-    // implement
+    // initialize bitmap image and set background color
+    // double windowHeight = 2 * nearDistance * tan(fovY / 2);
+    
+    // Vector3D topLeft = 
 }
 
-// OpenGL Codes
+
 
 /* Initialize OpenGL Graphics */
 void initGL() {
@@ -115,10 +130,15 @@ void initGL() {
     glEnable(GL_DEPTH_TEST);   // Enable depth testing for z-culling
 }
 
-// Global variables
-GLfloat eyex = 100, eyey = 100, eyez = 100;
-GLfloat centerx = 0, centery = 0, centerz = 0;
-GLfloat upx = 0, upy = 1, upz = 0;
+// // Global variables
+// GLfloat eyex = 0, eyey = -100, eyez = 0;
+// GLfloat centerx = 0, centery = 0, centerz = 0;
+// GLfloat upx = 0, upy = 0, upz = 1;
+
+Vector3D eye(0, -100, 0);
+Vector3D center(0, 0, 0);
+Vector3D u(0, 0, 1);
+Vector3D l, r;
 
 /* Draw axes: X in Red, Y in Green and Z in Blue */
 void drawAxes() {
@@ -153,14 +173,18 @@ void display() {
     // gluLookAt(0,0,0, 0,0,-100, 0,1,0);
 
     // control viewing (or camera)
-    gluLookAt(eyex,eyey,eyez,
-              centerx,centery,centerz,
-              upx,upy,upz);
+    gluLookAt(eye.getX(), eye.getY(), eye.getZ(),
+            center.getX(), center.getY(), center.getZ(),
+            u.getX(), u.getY(), u.getZ());
     // draw
     drawAxes();
 
     for (Object *object : objects) {
         object->draw();
+    }
+
+    for (PointLight *pointLight : pointLights) {
+        pointLight->draw();
     }
 
     glutSwapBuffers();  // Render now
@@ -187,95 +211,80 @@ void reshapeListener(GLsizei width, GLsizei height) {  // GLsizei for non-negati
         gluOrtho2D(-1.0, 1.0, -1.0 / aspect, 1.0 / aspect);
     }*/
     // Enable perspective projection with fovy, aspect, zNear and zFar
-    gluPerspective(45.0f, aspect, 0.1f, 20000);
+    gluPerspective(fovY, aspectRatio, nearDistance, farDistance);
 }
 
 /* Callback handler for normal-key event */
 void keyboardListener(unsigned char key, int x, int y) {
     float v = 10;
-    Point center, eye, up, look, right;
+    // Point center, eye, up, look, right;
     Rotation rotation;
 
-    center = Point(centerx, centery, centerz);
-    eye = Point(eyex, eyey, eyez);
-    up = Point(upx, upy, upz);
-    look = center - eye;
-    right = look * up;
+    // center = Point(centerx, centery, centerz);
+    // eye = Point(eyex, eyey, eyez);
+    // up = Point(upx, upy, upz);
+    l = center - eye;
+    l = l * (1 / sqrt(Vector3D::dot(l, l)));
+    r = l * u;
+    r = r * (1 / sqrt(Vector3D::dot(r, r)));
+
+    Point temp;
 
     switch (key) {
+        case '0':
+            capture();
+            break;
         case 'a':
-            rotation = Rotation(-10, up.getPx(), up.getPy(), up.getPz());
+            rotation = Rotation(-10, u.getX(), u.getY(), u.getZ());
             eye = eye - center;
-            eye = eye.transform(rotation.getMatrix());
+            temp = (Point(eye.getX(), eye.getY(), eye.getZ())).transform(rotation.getMatrix());
+            eye = Vector3D(temp.getPx(), temp.getPy(), temp.getPz());
             eye = eye + center;
-            eyex = eye.getPx();
-            eyey = eye.getPy();
-            eyez = eye.getPz();
-            right = look * up;
             break;
         case 'd':
-            rotation = Rotation(10, up.getPx(), up.getPy(), up.getPz());
+            rotation = Rotation(10, u.getX(), u.getY(), u.getZ());
             eye = eye - center;
-            eye = eye.transform(rotation.getMatrix());
+            temp = (Point(eye.getX(), eye.getY(), eye.getZ())).transform(rotation.getMatrix());
+            eye = Vector3D(temp.getPx(), temp.getPy(), temp.getPz());
             eye = eye + center;
-            eyex = eye.getPx();
-            eyey = eye.getPy();
-            eyez = eye.getPz();
-            right = look * up;
             break;
         case '1':
-            rotation = Rotation(10, up.getPx(), up.getPy(), up.getPz());
+            rotation = Rotation(10, u.getX(), u.getY(), u.getZ());
             center = center - eye;
-            center = center.transform(rotation.getMatrix());
+            temp = (Point(center.getX(), center.getY(), center.getZ())).transform(rotation.getMatrix());
+            center = Vector3D(temp.getPx(), temp.getPy(), temp.getPz());
             center = center + eye;
-            centerx = center.getPx();
-            centery = center.getPy();
-            centerz = center.getPz();
-            right = look * up;
             break;
         case '2':
-            rotation = Rotation(-10, up.getPx(), up.getPy(), up.getPz());
+            rotation = Rotation(-10, u.getX(), u.getY(), u.getZ());
             center = center - eye;
-            center = center.transform(rotation.getMatrix());
+            temp = (Point(center.getX(), center.getY(), center.getZ())).transform(rotation.getMatrix());
+            center = Vector3D(temp.getPx(), temp.getPy(), temp.getPz());
             center = center + eye;
-            centerx = center.getPx();
-            centery = center.getPy();
-            centerz = center.getPz();
-            right = look * up;
             break;
         case '3':
-            rotation = Rotation(10, right.getPx(), right.getPy(), right.getPz());
+            rotation = Rotation(10, r.getX(), r.getY(), r.getZ());
             center = center - eye;
-            center = center.transform(rotation.getMatrix());
+            temp = (Point(center.getX(), center.getY(), center.getZ())).transform(rotation.getMatrix());
+            center = Vector3D(temp.getPx(), temp.getPy(), temp.getPz());
             center = center + eye;
-            centerx = center.getPx();
-            centery = center.getPy();
-            centerz = center.getPz();
             break;
         case '4':
-            rotation = Rotation(-10, right.getPx(), right.getPy(), right.getPz());
+            rotation = Rotation(-10, r.getX(), r.getY(), r.getZ());
             center = center - eye;
-            center = center.transform(rotation.getMatrix());
+            temp = (Point(center.getX(), center.getY(), center.getZ())).transform(rotation.getMatrix());
+            center = Vector3D(temp.getPx(), temp.getPy(), temp.getPz());
             center = center + eye;
-            centerx = center.getPx();
-            centery = center.getPy();
-            centerz = center.getPz();
             break;
         case '5':
-            rotation = Rotation(10, look.getPx(), look.getPy(), look.getPz());
-            up = up.transform(rotation.getMatrix());
-            upx = up.getPx();
-            upy = up.getPy();
-            upz = up.getPz();
-            right = look * up;
+            rotation = Rotation(10, l.getX(), l.getY(), l.getZ());
+            temp = (Point(u.getX(), u.getY(), u.getZ())).transform(rotation.getMatrix());
+            u = Vector3D(temp.getPx(), temp.getPy(), temp.getPz());
             break;
         case '6':
-            rotation = Rotation(-10, look.getPx(), look.getPy(), look.getPz());
-            up = up.transform(rotation.getMatrix());
-            upx = up.getPx();
-            upy = up.getPy();
-            upz = up.getPz();
-            right = look * up;
+            rotation = Rotation(-10, l.getX(), l.getY(), l.getZ());
+            temp = (Point(u.getX(), u.getY(), u.getZ())).transform(rotation.getMatrix());
+            u = Vector3D(temp.getPx(), temp.getPy(), temp.getPz());
             break;
         // Control exit
         case 27:    // ESC key
@@ -288,9 +297,6 @@ void keyboardListener(unsigned char key, int x, int y) {
 /* Callback handler for special-key event */
 void specialKeyListener(int key, int x, int y) {
     double v = 10;
-    double lx = centerx - eyex;
-    double ly = centery - eyey;
-    double lz = centerz - eyez;
     double s;
     double speed = 10;
     double m = 1.0;
@@ -298,58 +304,35 @@ void specialKeyListener(int key, int x, int y) {
 
     double magnitude;
 
-    double rightx = ly * upz - upy * lz, righty = upx * lz - lx * upz, rightz = lx * upy - upx * ly;
-    double right_magnitude = sqrt(rightx * rightx + righty * righty + rightz * rightz);
-    if (right_magnitude != 0) {
-        rightx /= right_magnitude;
-        righty /= right_magnitude;
-        rightz /= right_magnitude;
-    }
+    l = center - eye;
+    l = l * (1 / sqrt(Vector3D::dot(l, l)));
+    r = l * u;
+    r = r * (1 / sqrt(Vector3D::dot(r, r)));
 
     switch (key) {
         case GLUT_KEY_LEFT:
-            eyex -= speed * rightx;
-            eyey -= speed * righty;
-            eyez -= speed * rightz;
-            centerx -= speed * rightx;
-            centery -= speed * righty;
-            centerz -= speed * rightz;
+            eye = eye - speed * r;
+            center = center - speed * r;
             break;
         case GLUT_KEY_RIGHT:
-            eyex += speed * rightx;
-            eyey += speed * righty;
-            eyez += speed * rightz;
-            centerx += speed * rightx;
-            centery += speed * righty;
-            centerz += speed * rightz;
+            eye = eye + speed * r;
+            center = center + speed * r;
             break;
         case GLUT_KEY_UP:
-            magnitude = sqrt((centerx - eyex) * (centerx - eyex) + (centery - eyey) * (centery - eyey) + (centerz - eyez) * (centerz - eyez));
-            eyex += (centerx - eyex) / magnitude * speed;
-            eyey += (centery - eyey) / magnitude * speed;
-            eyez += (centerz - eyez) / magnitude * speed;
+            eye = eye + speed * l;
+            center = center + speed * l;
             break;
         case GLUT_KEY_DOWN:
-            magnitude = sqrt((centerx - eyex) * (centerx - eyex) + (centery - eyey) * (centery - eyey) + (centerz - eyez) * (centerz - eyez));
-            eyex -= (centerx - eyex) / magnitude * speed;
-            eyey -= (centery - eyey) / magnitude * speed;
-            eyez -= (centerz - eyez) / magnitude * speed;
+            eye = eye - speed * l;
+            center = center - speed * l;
             break;
         case GLUT_KEY_PAGE_UP:
-            eyex += speed * upx;
-            eyey += speed * upy;
-            eyez += speed * upz;
-            centerx += speed * upx;
-            centery += speed * upy;
-            centerz += speed * upz;
+            eye = eye + speed * u;
+            center = center + speed * u;
             break;
         case GLUT_KEY_PAGE_DOWN:
-            eyex -= speed * upx;
-            eyey -= speed * upy;
-            eyez -= speed * upz;
-            centerx -= speed * upx;
-            centery -= speed * upy;
-            centerz -= speed * upz;
+            eye = eye - speed * u;
+            center = center - speed * u;
             break;
         default:
             return;

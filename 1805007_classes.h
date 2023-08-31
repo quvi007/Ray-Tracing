@@ -56,6 +56,10 @@ public:
         return Vector3D(-x, -y, -z);
     }
 
+    Vector3D operator*(const Vector3D &obj) const {
+        return Vector3D(y * obj.z - z * obj.y, z * obj.x - x * obj.z, x * obj.y - y * obj.x);
+    }
+
     Vector3D operator*(double s) const {
         return Vector3D(x * s, y * s, z * s);
     }
@@ -113,6 +117,46 @@ public:
     double diffuse;
     double specular;
     double reflection;
+    
+    CoEfficients() {}
+    CoEfficients(double ambient, double diffuse, double specular, double reflection) {
+        this->ambient = ambient;
+        this->diffuse = diffuse;
+        this->specular = specular;
+        this->reflection = reflection;
+    }
+
+    void setAmbient(double ambient) {
+        this->ambient = ambient;
+    }
+
+    void setDiffuse(double diffuse) {
+        this->diffuse = diffuse;
+    }
+
+    void setSpecular(double specular) {
+        this->specular = specular;
+    }
+
+    void setReflection(double reflection) {
+        this->reflection = reflection;
+    }
+
+    double getAmbient() const {
+        return ambient;
+    }
+
+    double getDiffuse() const {
+        return diffuse;
+    }
+
+    double getSpecular() const {
+        return specular;
+    }
+
+    double getReflection() const {
+        return reflection;
+    }
 };
 
 class Ray {
@@ -151,8 +195,6 @@ public:
 
 class Object {
 protected:
-    Vector3D referencePoint; // should have x, y, z
-    double height, width, length;
     Color color;
     CoEfficients coEfficients; // ambient, diffuse, specular, reflection coEfficients
     int shine; // exponent term of specular component
@@ -165,10 +207,6 @@ public:
         return -1.0;
     }
 
-    void setReferencePoint(const Vector3D &referencePoint) {
-        this->referencePoint = referencePoint;
-    }
-
     void setColor(const Color &color) {
         this->color = color;
     }
@@ -179,10 +217,6 @@ public:
     
     void setShine(int shine) {
         this->shine = shine;
-    }
-
-    Vector3D getReferencePoint() const {
-        return referencePoint;
     }
 
     Color getColor() const {
@@ -200,7 +234,9 @@ public:
 
 class Sphere : public Object {
 private:
-    void drawSphere(double radius, int numStacks, int numSlices) {
+    Vector3D center;
+    double radius;
+    void drawSphere(int numStacks, int numSlices) {
         glColor3d(color.getR(), color.getG(), color.getB());
         for (int i = 0; i < numStacks; ++i) {
             float phi1 = static_cast<float>(M_PI) * static_cast<float>(i) / numStacks;
@@ -227,22 +263,22 @@ private:
 public:
     Sphere() {}
     Sphere(const Vector3D &center, double radius) {
-        this->referencePoint = center;
-        this->length = radius;
+        this->center = center;
+        this->radius = radius;
     }
     
     void draw() {
         glPushMatrix();
-        glTranslated(referencePoint.getX(), referencePoint.getY(), referencePoint.getZ());
-        drawSphere(this->length, 100, 100);
+        glTranslated(center.getX(), center.getY(), center.getZ());
+        drawSphere(100, 100);
         glPopMatrix();
     }
 
     double intersect(const Ray &ray, const Color &color, int level) {
         Vector3D Ro = ray.getStart();
         Vector3D Rd = ray.getDir();
-        Vector3D C = this->referencePoint;
-        double r = this->length;
+        Vector3D C = center;
+        double r = radius;
 
         double a, b, c;
 
@@ -261,31 +297,51 @@ public:
     }
 };
 
-class Triangle : public Object {
+class Pyramid : public Object {
 private:
-    Vector3D p1, p2, p3;
+    Vector3D lowest_point;
+    double width;
+    double height;
 
-    void drawTriangle(double x1, double y1, double z1, double x2, double y2, double z2, double x3, double y3, double z3, const Color &color) {
+    void drawPyramid() {
         glColor3d(color.getR(), color.getG(), color.getB());
+        glBegin(GL_QUADS);
+            glVertex3d(0, 0, 0);
+            glVertex3d(width, 0, 0);
+            glVertex3d(width, width, 0);
+            glVertex3d(0, width, 0);
+        glEnd();
         glBegin(GL_TRIANGLES);
-            glVertex3d(x1, y1, z1);
-            glVertex3d(x2, y2, z2);
-            glVertex3d(x3, y3, z3);
+            glVertex3d(0, 0, 0);
+            glVertex3d(width, 0, 0);
+            glVertex3d(width / 2, width / 2, height);
+
+            glVertex3d(width, 0, 0);
+            glVertex3d(width, width, 0);
+            glVertex3d(width / 2, width / 2, height);
+
+            glVertex3d(width, width, 0);
+            glVertex3d(0, width, 0);
+            glVertex3d(width / 2, width / 2, height);
+
+            glVertex3d(0, width, 0);
+            glVertex3d(0, 0, 0);
+            glVertex3d(width / 2, width / 2, height);
         glEnd();
     }
 public:
-    Triangle() {}
-    Triangle(const Vector3D &p1, const Vector3D &p2, const Vector3D &p3) {
-        this->p1 = p1;
-        this->p2 = p2;
-        this->p3 = p3;
+    Pyramid() {}
+    Pyramid(const Vector3D &lowest_point, double width, double height) {
+        this->lowest_point = lowest_point;
+        this->width = width;
+        this->height = height;
     }
 
     void draw() {
-        drawTriangle(p1.getX(), p1.getY(), p1.getZ(), 
-            p2.getX(), p2.getY(), p2.getZ(),
-            p3.getX(), p3.getY(), p3.getZ(),
-            color);
+        glPushMatrix();
+        glTranslated(lowest_point.getX(), lowest_point.getY(), lowest_point.getZ());
+        drawPyramid();
+        glPopMatrix();
     }
 
     double intersect(const Ray &ray, const Color &color, int level) {
@@ -294,14 +350,57 @@ public:
     }
 };
 
-class General : public Object {
+class Cube : public Object {
+private:
+    Vector3D bottom_lower_left_point;
+    double side;
+
+    void drawCube() {
+        glColor3d(color.getR(), color.getG(), color.getB());
+        glBegin(GL_QUADS);
+            glVertex3d(0, 0, 0);
+            glVertex3d(side, 0, 0);
+            glVertex3d(side, side, 0);
+            glVertex3d(0, side, 0);
+
+            glVertex3d(0, 0, 0);
+            glVertex3d(side, 0, 0);
+            glVertex3d(side, 0, side);
+            glVertex3d(0, 0, side);
+
+            glVertex3d(side, 0, 0);
+            glVertex3d(side, side, 0);
+            glVertex3d(side, side, side);
+            glVertex3d(side, 0, side);
+            
+            glVertex3d(side, side, 0);
+            glVertex3d(0, side, 0);
+            glVertex3d(0, side, side);
+            glVertex3d(side, side, side);
+            
+            glVertex3d(0, side, 0);
+            glVertex3d(0, 0, 0);
+            glVertex3d(0, 0, side);
+            glVertex3d(0, side, side);
+            
+            glVertex3d(0, 0, side);
+            glVertex3d(side, 0, side);
+            glVertex3d(side, side, side);
+            glVertex3d(0, side, side);
+        glEnd();
+    }
 public:
-    General() {
-        // write this constructor
+    Cube() {}
+    Cube(const Vector3D &bottom_lower_left_point, double side) {
+        this->bottom_lower_left_point = bottom_lower_left_point;
+        this->side = side;
     }
 
     void draw() {
-        // write codes for drawing quad object
+        glPushMatrix();
+        glTranslated(bottom_lower_left_point.getX(), bottom_lower_left_point.getY(), bottom_lower_left_point.getZ());
+        drawCube();
+        glPopMatrix();
     }
 
     double intersect(const Ray &ray, const Color &color, int level) {
@@ -313,33 +412,56 @@ public:
 class PointLight {
 private:
     Vector3D lightPos;
-    Color color;
+    double falloffParameter;
 
     friend istream &operator>>(istream &is, PointLight &pointLight);
     friend ostream &operator<<(ostream &os, const PointLight &pointLight);
+
+    void drawSphere(double radius, int numStacks, int numSlices) {
+        glColor3d(0.8, 0.8, 0.8);
+        for (int i = 0; i < numStacks; ++i) {
+            float phi1 = static_cast<float>(M_PI) * static_cast<float>(i) / numStacks;
+            float phi2 = static_cast<float>(M_PI) * static_cast<float>(i + 1) / numStacks;
+            
+            glBegin(GL_QUAD_STRIP);
+            for (int j = 0; j <= numSlices; ++j) {
+                float theta = 2.0f * static_cast<float>(M_PI) * static_cast<float>(j) / numSlices;
+                
+                float x1 = radius * sin(phi1) * cos(theta);
+                float y1 = radius * cos(phi1);
+                float z1 = radius * sin(phi1) * sin(theta);
+                
+                float x2 = radius * sin(phi2) * cos(theta);
+                float y2 = radius * cos(phi2);
+                float z2 = radius * sin(phi2) * sin(theta);
+                
+                glVertex3f(x1, y1, z1);
+                glVertex3f(x2, y2, z2);
+            }
+            glEnd();
+        }
+    }
 public:
     PointLight() {}
-    PointLight(const Vector3D &lightPos, const Color &color) {
+    PointLight(const Vector3D &lightPos, double falloffParameter) {
         this->lightPos = lightPos;
-        this->color = color;
+        this->falloffParameter = falloffParameter;
+    }
+
+    void draw() {
+        glPushMatrix();
+        glTranslated(lightPos.getX(), lightPos.getY(), lightPos.getZ());
+        drawSphere(5, 100, 100);
+        glPopMatrix();
     }
 
     void setLightPos(const Vector3D &lightPos) {
         this->lightPos = lightPos;
     }
 
-    void setColor(const Color &color) {
-        this->color = color;
-    }
-
     Vector3D getLightPos() const {
         return lightPos;
     }
-
-    Color getColor() const {
-        return color;
-    }
-    
 };
 
 class SpotLight {
@@ -400,10 +522,10 @@ private:
                 } else {
                     glColor3f(0.0f, 0.0f, 0.0f); // Black color
                 }
-                glVertex3f(j * tileWidth, 0.0f, i * tileWidth);
-                glVertex3f((j + 1) * tileWidth, 0.0f, i * tileWidth);
-                glVertex3f((j + 1) * tileWidth, 0.0f, (i + 1) * tileWidth);
-                glVertex3f(j * tileWidth, 0.0f, (i + 1) * tileWidth);
+                glVertex3f(j * tileWidth, i * tileWidth, 0.0f);
+                glVertex3f((j + 1) * tileWidth, i * tileWidth, 0.0f);
+                glVertex3f((j + 1) * tileWidth, (i + 1) * tileWidth, 0.0f);
+                glVertex3f(j * tileWidth, (i + 1) * tileWidth, 0.0f);
                 glEnd();
                 
                 isWhite = !isWhite; // Switch color for the next tile
@@ -416,13 +538,12 @@ private:
 public: 
     Floor() {}
     Floor(double floorWidth, double tileWidth) {
-        this->referencePoint = Vector3D(-floorWidth / 2, 0, -floorWidth / 2);
         this->floorWidth = (int) floorWidth;
         this->tileWidth = (int) tileWidth;
     }
     void draw() {
         glPushMatrix();
-        glTranslated(referencePoint.getX(), referencePoint.getY(), referencePoint.getZ());
+        glTranslated(-floorWidth / 2, -floorWidth / 2, 0);
         drawCheckerBoard(floorWidth, tileWidth);
         glPopMatrix();
     }
@@ -463,12 +584,12 @@ ostream &operator<<(ostream &os, const CoEfficients &coEfficients) {
 }
 
 istream &operator>>(istream &is, PointLight &pointLight) {
-    is >> pointLight.lightPos >> pointLight.color;
+    is >> pointLight.lightPos >> pointLight.falloffParameter;
     return is;
 }
 
 ostream &operator<<(ostream &os, const PointLight &pointLight) {
-    os << pointLight.lightPos << " " << pointLight.color;
+    os << pointLight.lightPos << " " << pointLight.falloffParameter;
     return os;
 }
 
