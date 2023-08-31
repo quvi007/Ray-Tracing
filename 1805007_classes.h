@@ -1,4 +1,9 @@
+#include <GL/glut.h>  // GLUT, include glu.h and gl.h
+#include <cmath>
 #include <iostream>
+
+#include "Rotation.h"
+#include "Point.h"
 
 class Vector3D {
 private:
@@ -194,6 +199,31 @@ public:
 };
 
 class Sphere : public Object {
+private:
+    void drawSphere(double radius, int numStacks, int numSlices) {
+        glColor3d(color.getR(), color.getG(), color.getB());
+        for (int i = 0; i < numStacks; ++i) {
+            float phi1 = static_cast<float>(M_PI) * static_cast<float>(i) / numStacks;
+            float phi2 = static_cast<float>(M_PI) * static_cast<float>(i + 1) / numStacks;
+            
+            glBegin(GL_QUAD_STRIP);
+            for (int j = 0; j <= numSlices; ++j) {
+                float theta = 2.0f * static_cast<float>(M_PI) * static_cast<float>(j) / numSlices;
+                
+                float x1 = radius * sin(phi1) * cos(theta);
+                float y1 = radius * cos(phi1);
+                float z1 = radius * sin(phi1) * sin(theta);
+                
+                float x2 = radius * sin(phi2) * cos(theta);
+                float y2 = radius * cos(phi2);
+                float z2 = radius * sin(phi2) * sin(theta);
+                
+                glVertex3f(x1, y1, z1);
+                glVertex3f(x2, y2, z2);
+            }
+            glEnd();
+        }
+    }
 public:
     Sphere() {}
     Sphere(const Vector3D &center, double radius) {
@@ -202,7 +232,10 @@ public:
     }
     
     void draw() {
-        // write codes for drawing sphere
+        glPushMatrix();
+        glTranslated(referencePoint.getX(), referencePoint.getY(), referencePoint.getZ());
+        drawSphere(this->length, 100, 100);
+        glPopMatrix();
     }
 
     double intersect(const Ray &ray, const Color &color, int level) {
@@ -229,14 +262,30 @@ public:
 };
 
 class Triangle : public Object {
+private:
+    Vector3D p1, p2, p3;
+
+    void drawTriangle(double x1, double y1, double z1, double x2, double y2, double z2, double x3, double y3, double z3, const Color &color) {
+        glColor3d(color.getR(), color.getG(), color.getB());
+        glBegin(GL_TRIANGLES);
+            glVertex3d(x1, y1, z1);
+            glVertex3d(x2, y2, z2);
+            glVertex3d(x3, y3, z3);
+        glEnd();
+    }
 public:
     Triangle() {}
     Triangle(const Vector3D &p1, const Vector3D &p2, const Vector3D &p3) {
-        // what will be the triangle's constructor be like?
+        this->p1 = p1;
+        this->p2 = p2;
+        this->p3 = p3;
     }
 
     void draw() {
-        // write codes for drawing triangle
+        drawTriangle(p1.getX(), p1.getY(), p1.getZ(), 
+            p2.getX(), p2.getY(), p2.getZ(),
+            p3.getX(), p3.getY(), p3.getZ(),
+            color);
     }
 
     double intersect(const Ray &ray, const Color &color, int level) {
@@ -336,14 +385,46 @@ public:
 };
 
 class Floor : public Object {
+private:
+    int floorWidth;
+    int tileWidth;
+
+    void drawCheckerBoard(int floorWidth, int tileWidth) {
+        int count = floorWidth / tileWidth;
+        bool isWhite = true;
+        for (int i = 0; i < count; ++i) {
+            for (int j = 0; j < count; ++j) {
+                glBegin(GL_QUADS);
+                if (isWhite) {
+                    glColor3f(1.0f, 1.0f, 1.0f); // White color
+                } else {
+                    glColor3f(0.0f, 0.0f, 0.0f); // Black color
+                }
+                glVertex3f(j * tileWidth, 0.0f, i * tileWidth);
+                glVertex3f((j + 1) * tileWidth, 0.0f, i * tileWidth);
+                glVertex3f((j + 1) * tileWidth, 0.0f, (i + 1) * tileWidth);
+                glVertex3f(j * tileWidth, 0.0f, (i + 1) * tileWidth);
+                glEnd();
+                
+                isWhite = !isWhite; // Switch color for the next tile
+            }
+            if (count % 2 == 0) {
+                isWhite = !isWhite; // Offset the color for each row
+            }
+        }
+    }
 public: 
     Floor() {}
     Floor(double floorWidth, double tileWidth) {
-        this->referencePoint = Vector3D(-floorWidth / 2, -floorWidth / 2, 0);
-        this->length = tileWidth;
+        this->referencePoint = Vector3D(-floorWidth / 2, 0, -floorWidth / 2);
+        this->floorWidth = (int) floorWidth;
+        this->tileWidth = (int) tileWidth;
     }
     void draw() {
-        // write code
+        glPushMatrix();
+        glTranslated(referencePoint.getX(), referencePoint.getY(), referencePoint.getZ());
+        drawCheckerBoard(floorWidth, tileWidth);
+        glPopMatrix();
     }
 };
 
