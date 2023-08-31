@@ -216,13 +216,9 @@ void reshapeListener(GLsizei width, GLsizei height) {  // GLsizei for non-negati
 
 /* Callback handler for normal-key event */
 void keyboardListener(unsigned char key, int x, int y) {
-    float v = 10;
-    // Point center, eye, up, look, right;
+    double speed = 10;
     Rotation rotation;
 
-    // center = Point(centerx, centery, centerz);
-    // eye = Point(eyex, eyey, eyez);
-    // up = Point(upx, upy, upz);
     l = center - eye;
     l = l * (1 / sqrt(Vector3D::dot(l, l)));
     r = l * u;
@@ -235,60 +231,56 @@ void keyboardListener(unsigned char key, int x, int y) {
             capture();
             break;
         case 'a':
-            rotation = Rotation(-10, u.getX(), u.getY(), u.getZ());
+            rotation = Rotation(-speed, u.getX(), u.getY(), u.getZ());
             eye = eye - center;
             temp = (Point(eye.getX(), eye.getY(), eye.getZ())).transform(rotation.getMatrix());
             eye = Vector3D(temp.getPx(), temp.getPy(), temp.getPz());
             eye = eye + center;
             break;
         case 'd':
-            rotation = Rotation(10, u.getX(), u.getY(), u.getZ());
+            rotation = Rotation(speed, u.getX(), u.getY(), u.getZ());
             eye = eye - center;
             temp = (Point(eye.getX(), eye.getY(), eye.getZ())).transform(rotation.getMatrix());
             eye = Vector3D(temp.getPx(), temp.getPy(), temp.getPz());
             eye = eye + center;
             break;
         case '1':
-            rotation = Rotation(10, u.getX(), u.getY(), u.getZ());
+            rotation = Rotation(speed, u.getX(), u.getY(), u.getZ());
             center = center - eye;
             temp = (Point(center.getX(), center.getY(), center.getZ())).transform(rotation.getMatrix());
             center = Vector3D(temp.getPx(), temp.getPy(), temp.getPz());
             center = center + eye;
             break;
         case '2':
-            rotation = Rotation(-10, u.getX(), u.getY(), u.getZ());
+            rotation = Rotation(-speed, u.getX(), u.getY(), u.getZ());
             center = center - eye;
             temp = (Point(center.getX(), center.getY(), center.getZ())).transform(rotation.getMatrix());
             center = Vector3D(temp.getPx(), temp.getPy(), temp.getPz());
             center = center + eye;
             break;
         case '3':
-            rotation = Rotation(10, r.getX(), r.getY(), r.getZ());
+            rotation = Rotation(speed, r.getX(), r.getY(), r.getZ());
             center = center - eye;
             temp = (Point(center.getX(), center.getY(), center.getZ())).transform(rotation.getMatrix());
             center = Vector3D(temp.getPx(), temp.getPy(), temp.getPz());
             center = center + eye;
             break;
         case '4':
-            rotation = Rotation(-10, r.getX(), r.getY(), r.getZ());
+            rotation = Rotation(-speed, r.getX(), r.getY(), r.getZ());
             center = center - eye;
             temp = (Point(center.getX(), center.getY(), center.getZ())).transform(rotation.getMatrix());
             center = Vector3D(temp.getPx(), temp.getPy(), temp.getPz());
             center = center + eye;
             break;
         case '5':
-            rotation = Rotation(10, l.getX(), l.getY(), l.getZ());
+            rotation = Rotation(speed, l.getX(), l.getY(), l.getZ());
             temp = (Point(u.getX(), u.getY(), u.getZ())).transform(rotation.getMatrix());
             u = Vector3D(temp.getPx(), temp.getPy(), temp.getPz());
             break;
         case '6':
-            rotation = Rotation(-10, l.getX(), l.getY(), l.getZ());
+            rotation = Rotation(-speed, l.getX(), l.getY(), l.getZ());
             temp = (Point(u.getX(), u.getY(), u.getZ())).transform(rotation.getMatrix());
             u = Vector3D(temp.getPx(), temp.getPy(), temp.getPz());
-            break;
-        // Control exit
-        case 27:    // ESC key
-            exit(0);    // Exit window
             break;
     }
     glutPostRedisplay();    // Post a paint request to activate display()
@@ -296,13 +288,7 @@ void keyboardListener(unsigned char key, int x, int y) {
 
 /* Callback handler for special-key event */
 void specialKeyListener(int key, int x, int y) {
-    double v = 10;
-    double s;
     double speed = 10;
-    double m = 1.0;
-    double kk = 0.1;
-
-    double magnitude;
 
     l = center - eye;
     l = l * (1 / sqrt(Vector3D::dot(l, l)));
