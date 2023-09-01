@@ -284,14 +284,15 @@ void capture() {
 
     topLeft = topLeft + r * (0.5 * du) - u * (0.5 * dv);
 
-    for (int i = 1; i <= dimension; ++i) {
-        for (int j = 1; j <= dimension; ++j) {
-            Vector3D curPixel = topLeft + (i - 1) * du * r - (j - 1) * dv * u;
+    for (int i = 0; i < dimension; ++i) {
+        for (int j = 0; j < dimension; ++j) {
+            Vector3D curPixel = topLeft + i * du * r - j * dv * u;
             Ray ray(curPixel, curPixel - eye);
             Color color(0, 0, 0), dummyColor;
             double tMin = 1e9;
             Object *nearestObject = nullptr;
-            for (Object *object : objects) {
+
+            for (Object * object : objects) {
                 double t = object->intersect(ray, dummyColor, level_of_recursion + 1);
                 if (t >= 0 && t < tMin) {
                     tMin = t;
