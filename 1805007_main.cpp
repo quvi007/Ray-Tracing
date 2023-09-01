@@ -300,12 +300,7 @@ void capture() {
             }
             if (!nearestObject || tMin < 0) continue;
             tMin = nearestObject->intersect(ray, color, level_of_recursion);
-            if (color.getR() > 1) color.setR(1);
-            if (color.getG() > 1) color.setG(1);
-            if (color.getB() > 1) color.setB(1);
-            if (color.getR() < 0) color.setR(0);
-            if (color.getG() < 0) color.setG(0);
-            if (color.getB() < 0) color.setB(0);
+            color.clip();
             bmp.set_pixel(i, j, color.getR() * 255, color.getG() * 255, color.getB() * 255);
         }
     }
@@ -513,7 +508,6 @@ void openglMain(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
-    freopen("txt-out.txt", "w", stdout);
     loadData();
     openglMain(argc, argv);
     return 0;

@@ -13,6 +13,11 @@ extern int level_of_recursion;
 
 bool reflectionOn = true;
 
+bool EQ(double a, double b) {
+    if (abs(a - b) <= 1e-3) return true;
+    return false;
+}
+
 class Vector3D {
 private:
     double x, y, z;
@@ -169,6 +174,17 @@ public:
         return b;
     }
 
+    void clip() {
+        if (r > 1) r = 1;
+        if (r < 0) r = 0;
+
+        if (g > 1) g = 1;
+        if (g < 0) g = 0;
+
+        if (b > 1) b = 1;
+        if (b < 0) b = 0;
+    }
+
     Color operator*(double k) const {
         return Color(r * k, g * k, b * k);
     }
@@ -265,11 +281,6 @@ public:
         return dir;
     }
 };
-
-bool EQ(double a, double b) {
-    if (abs(a - b) <= 1e-3) return true;
-    return false;
-}
 
 class PointLight {
 private:
@@ -664,7 +675,6 @@ public:
         normal.normalize();
 
         t = (-(-Vector3D::dot(normal, a) + Vector3D::dot(normal, Ro))) / (Vector3D::dot(normal, Rd));
-        // cout << t << endl;
         color = Color(0, 0, 0);
 
         Vector3D intersectionPoint = ray.getStart() + t * ray.getDir();
@@ -915,9 +925,9 @@ private:
             for (int j = 0; j < count; ++j) {
                 glBegin(GL_QUADS);
                 if (isWhite) {
-                    glColor3f(1.0f, 1.0f, 1.0f); // White color
+                    glColor3f(1.0f, 1.0f, 1.0f);
                 } else {
-                    glColor3f(0.0f, 0.0f, 0.0f); // Black color
+                    glColor3f(0.0f, 0.0f, 0.0f);
                 }
                 glVertex3f(j * tileWidth, i * tileWidth, 0.0f);
                 glVertex3f((j + 1) * tileWidth, i * tileWidth, 0.0f);
@@ -925,10 +935,10 @@ private:
                 glVertex3f(j * tileWidth, (i + 1) * tileWidth, 0.0f);
                 glEnd();
                 
-                isWhite = !isWhite; // Switch color for the next tile
+                isWhite = !isWhite;
             }
             if (count % 2 == 0) {
-                isWhite = !isWhite; // Offset the color for each row
+                isWhite = !isWhite;
             }
         }
     }
