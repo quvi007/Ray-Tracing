@@ -361,6 +361,8 @@ public:
     }
 };
 
+extern vector<Object *> objects;
+
 class Sphere : public Object {
 private:
     Vector3D center;
@@ -434,20 +436,37 @@ public:
         Vector3D intersectionPoint = ray.getStart() + t * ray.getDir();
 
         Color intersectionPointColor = this->color;
-        // color = intersectionPointColor * coEfficients.getAmbient();
-        // Vector3D normal = (intersectionPoint - center);
-        // normal.normalize();
+        color = intersectionPointColor * coEfficients.getAmbient();
+        Vector3D normal = (intersectionPoint - center);
+        normal.normalize();
 
-        // double lambert = 0, phong = 0;
+        double lambert = 0, phong = 0;
 
-        // for (PointLight *pointLight : pointLights) {
-        //     Vector3D toSource = intersectionPoint - pointLight->getLightPos();
-        //     double distance = toSource.magnitude();
-        //     toSource.normalize();
-        //     double scaling_factor = exp(- distance * distance * pointLight->getFalloffParameter());
-        //     lambert = Vector3D::dot(toSource, normal) * scaling_factor;
-        //     color = color + Color(1, 1, 1) * coEfficients.getDiffuse() * lambert;
-        // }
+        for (PointLight *pointLight : pointLights) {
+            Vector3D toSource = intersectionPoint - pointLight->getLightPos();
+            double distance = toSource.magnitude();
+            toSource.normalize();
+            Ray PS(intersectionPoint + 0.0001 * toSource, toSource);
+            Ray SP(pointLight->getLightPos(), toSource * (-1));
+            Color dummyColor(1, 1, 1);
+            double tMin = 1e9;
+            Object *nearestObject = nullptr;
+            for (Object *object : objects) {
+                double t = object->intersect(PS, dummyColor, 0);
+                if (t >= 0 && t < tMin) {
+                    tMin = t;
+                    nearestObject = object;
+                }
+            }
+            if (tMin >= (distance - 0.0001) && nearestObject) {
+                double scaling_factor = exp(- distance * distance * pointLight->getFalloffParameter());
+                lambert += Vector3D::dot(toSource, normal) * scaling_factor;
+                
+                phong += pow(Vector3D::dot(), shine) * scaling_factor; 
+                color = color + intersectionPointColor * coEfficients.getDiffuse() * lambert;
+                color = color + intersectionPointColor * coEfficients.getSpecular() * phong;
+            }
+        }
         
         // if (level >= level_of_recursion) return t;
 
