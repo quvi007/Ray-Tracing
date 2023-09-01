@@ -9,8 +9,9 @@
 
 #define RAD(x) (x * M_PI / 180.0)
 
+extern bool textureOn;
 extern int level_of_recursion;
-
+extern double farDistance;
 bool reflectionOn = true;
 
 bool EQ(double a, double b) {
@@ -195,6 +196,9 @@ public:
         return Color(rr, gg, bb);
     }
 };
+
+extern vector<vector<Color>> w_tex;
+extern vector<vector<Color>> b_tex;
 
 class CoEfficients {
 private:
@@ -625,7 +629,7 @@ public:
                     nextNearestObject = nextObject;
                 }
             }
-            if (!nextNearestObject || nextTMin < 0 || nextTMin > 20000) return t;
+            if (!nextNearestObject || nextTMin < 0 || nextTMin > 4000) return t;
             nextTMin = nextNearestObject->intersect(reflectedRay, nextColor, level - 1);
 
             color = color + nextColor * coEfficients.getReflection();
@@ -762,7 +766,7 @@ public:
                     nextNearestObject = nextObject;
                 }
             }
-            if (!nextNearestObject || nextTMin < 0 || nextTMin > 20000) return t;
+            if (!nextNearestObject || nextTMin < 0 || nextTMin > 4000) return t;
             nextTMin = nextNearestObject->intersect(reflectedRay, nextColor, level - 1);
 
             color = color + nextColor * coEfficients.getReflection();
@@ -902,7 +906,7 @@ public:
                     nextNearestObject = nextObject;
                 }
             }
-            if (!nextNearestObject || nextTMin < 0 || nextTMin > 20000) return t;
+            if (!nextNearestObject || nextTMin < 0 || nextTMin > 4000) return t;
             nextTMin = nextNearestObject->intersect(reflectedRay, nextColor, level - 1);
 
             color = color + nextColor * coEfficients.getReflection();
@@ -983,9 +987,35 @@ public:
 
         Color tempColor;
 
-        if ((dx + dy) % 2) tempColor = Color(1, 1, 1);
-        else tempColor = Color(0, 0, 0);
+        double rightPixel, bottomPixel, p, q;
+        int xx, yy;
 
+        if (textureOn) {
+            rightPixel = abs(diff.getX()) - (dx - 1) * tileWidth;
+            bottomPixel = abs(diff.getY()) - (dy - 1) * tileWidth;
+            p =  tileWidth / 256.0;
+            q = tileWidth / 256.0;
+            xx = floor(rightPixel / p);
+            yy = floor(bottomPixel / q);
+            
+            if (xx < 0) xx = 0;
+            if (yy < 0) yy = 0;
+            if (xx > 255) xx = 255;
+            if (yy > 255) yy = 255;
+        }
+        
+        if ((dx + dy) % 2) {
+            // white
+            if (textureOn)
+                tempColor = w_tex[yy][xx];
+            else tempColor = Color(1, 1, 1);
+        }
+        else {
+            // black
+            if (textureOn)
+                tempColor = b_tex[yy][xx];
+            else tempColor = Color(0, 0, 0);
+        }
         Color intersectionPointColor = tempColor;
         color = intersectionPointColor;
         
@@ -1063,7 +1093,7 @@ public:
                     nextNearestObject = nextObject;
                 }
             }
-            if (!nextNearestObject || nextTMin < 0 || nextTMin > 20000) return t;
+            if (!nextNearestObject || nextTMin < 0 || nextTMin > 4000) return t;
             nextTMin = nextNearestObject->intersect(reflectedRay, nextColor, level - 1);
 
             color = color + nextColor * coEfficients.getReflection();

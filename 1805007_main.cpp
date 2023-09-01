@@ -259,6 +259,8 @@ void initGL() {
 
 int fileCount = 0;
 
+bool textureOn = false;
+
 Vector3D eye(40, -100, 40);
 Vector3D center(0, 0, 0);
 Vector3D u(0, 0, 1);
@@ -269,6 +271,22 @@ void calculateLR() {
     l = l * (1 / sqrt(Vector3D::dot(l, l)));
     r = l * u;
     r = r * (1 / sqrt(Vector3D::dot(r, r)));
+}
+
+vector<vector<Color>> w_tex(256, vector<Color>(256, Color(1, 1, 1)));
+vector<vector<Color>> b_tex(256, vector<Color>(256, Color(0, 0, 0)));
+
+void loadTexture() {
+    bitmap_image w_tex_bmp("texture_w.bmp"), b_tex_bmp("texture_b.bmp");
+
+    for (int i = 0; i < 256; ++i) {
+        for (int j = 0; j < 256; ++j) {
+            bitmap_image::rgb_t colW = w_tex_bmp.get_pixel(j, i);
+            bitmap_image::rgb_t colB = b_tex_bmp.get_pixel(j, i);
+            w_tex[i][j] = Color(colW.red / 255.0, colW.green / 255.0, colW.blue / 255.0);
+            b_tex[i][j] = Color(colB.red / 255.0, colB.green / 255.0, colB.blue / 255.0);
+        }
+    }
 }
 
 void capture() {
@@ -287,7 +305,9 @@ void capture() {
     for (int i = 0; i < dimension; ++i) {
         for (int j = 0; j < dimension; ++j) {
             Vector3D curPixel = topLeft + i * du * r - j * dv * u;
-            Ray ray(curPixel, curPixel - eye);
+            Vector3D dirr = (curPixel - eye);
+            dirr.normalize();
+            Ray ray(curPixel, dirr);
             Color color(0, 0, 0), dummyColor;
             double tMin = 1e9;
             Object *nearestObject = nullptr;
@@ -299,7 +319,7 @@ void capture() {
                     nearestObject = object;
                 }
             }
-            if (!nearestObject || tMin < 0) continue;
+            if (!nearestObject || tMin < 0 || tMin > 4000) continue;
             tMin = nearestObject->intersect(ray, color, level_of_recursion);
             color.clip();
             bmp.set_pixel(i, j, color.getR() * 255, color.getG() * 255, color.getB() * 255);
@@ -390,7 +410,7 @@ void reshapeListener(GLsizei width, GLsizei height) {  // GLsizei for non-negati
 
 /* Callback handler for normal-key event */
 void keyboardListener(unsigned char key, int x, int y) {
-    double speed = 10;
+    double speed = 5;
     Rotation rotation;
 
     calculateLR();
@@ -398,6 +418,9 @@ void keyboardListener(unsigned char key, int x, int y) {
     Point temp;
 
     switch (key) {
+        case 32:
+            textureOn = !textureOn;
+            break;
         case '0':
             capture();
             break;
@@ -435,6 +458,9 @@ void keyboardListener(unsigned char key, int x, int y) {
             temp = (Point(center.getX(), center.getY(), center.getZ())).transform(rotation.getMatrix());
             center = Vector3D(temp.getPx(), temp.getPy(), temp.getPz());
             center = center + eye;
+            
+            temp = (Point(u.getX(), u.getY(), u.getZ())).transform(rotation.getMatrix());
+            u = Vector3D(temp.getPx(), temp.getPy(), temp.getPz());
             break;
         case '4':
             rotation = Rotation(-speed, r.getX(), r.getY(), r.getZ());
@@ -442,6 +468,9 @@ void keyboardListener(unsigned char key, int x, int y) {
             temp = (Point(center.getX(), center.getY(), center.getZ())).transform(rotation.getMatrix());
             center = Vector3D(temp.getPx(), temp.getPy(), temp.getPz());
             center = center + eye;
+
+            temp = (Point(u.getX(), u.getY(), u.getZ())).transform(rotation.getMatrix());
+            u = Vector3D(temp.getPx(), temp.getPy(), temp.getPz());
             break;
         case '5':
             rotation = Rotation(speed, l.getX(), l.getY(), l.getZ());
@@ -459,7 +488,7 @@ void keyboardListener(unsigned char key, int x, int y) {
 
 /* Callback handler for special-key event */
 void specialKeyListener(int key, int x, int y) {
-    double speed = 10;
+    double speed = 5;
 
     calculateLR();
 
@@ -509,7 +538,9 @@ void openglMain(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
+    // freopen("out.txt", "w", stdout);
     loadData();
+    loadTexture();
     openglMain(argc, argv);
     return 0;
 }
