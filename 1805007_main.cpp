@@ -4,7 +4,7 @@ using namespace std;
 
 #include "1805007_classes.h"
 
-string scene_file = "scene_test.txt";
+string scene_file = "scene.txt";
 
 double nearDistance, farDistance;
 double fovY;

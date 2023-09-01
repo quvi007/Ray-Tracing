@@ -1,4 +1,4 @@
-#include "Point.h"
+#include "1805007_Point.h"
 #include <cmath>
 
 Point::Point() : Point(0, 0, 0) {}

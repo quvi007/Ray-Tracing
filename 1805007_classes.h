@@ -2,8 +2,8 @@
 #include <cmath>
 #include <iostream>
 
-#include "Rotation.h"
-#include "Point.h"
+#include "1805007_Rotation.h"
+#include "1805007_Point.h"
 
 #include "bitmap_image.hpp"
 
@@ -132,7 +132,6 @@ bool triangleContainsPoint(const Vector3D &a, const Vector3D &b, const Vector3D 
 
 bool rectangleContainsPoint(const Vector3D &a, const Vector3D &b, const Vector3D &c, const Vector3D &d, const Vector3D &p) {
     bool ans = triangleContainsPoint(a, b, d, p) || triangleContainsPoint(b, c, d, p);
-    if (ans) cout << p << "\n";
     return ans;
 }
 
@@ -815,7 +814,6 @@ public:
         normal.normalize();
 
         t = (-(-Vector3D::dot(normal, a) + Vector3D::dot(normal, Ro))) / (Vector3D::dot(normal, Rd));
-        // cout << t << endl;
         color = Color(0, 0, 0);
 
         Vector3D intersectionPoint = ray.getStart() + t * ray.getDir();
