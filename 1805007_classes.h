@@ -286,12 +286,38 @@ private:
 
     friend istream &operator>>(istream &is, SpotLight &spotLight);
     friend ostream &operator<<(ostream &os, const SpotLight &spotLight);
+
+    void drawSphere(double radius, int numStacks, int numSlices) {
+        glColor3d(0.8, 0.8, 0.0);
+        for (int i = 0; i < numStacks; ++i) {
+            float phi1 = static_cast<float>(M_PI) * static_cast<float>(i) / numStacks;
+            float phi2 = static_cast<float>(M_PI) * static_cast<float>(i + 1) / numStacks;
+            
+            glBegin(GL_QUAD_STRIP);
+            for (int j = 0; j <= numSlices; ++j) {
+                float theta = 2.0f * static_cast<float>(M_PI) * static_cast<float>(j) / numSlices;
+                
+                float x1 = radius * sin(phi1) * cos(theta);
+                float y1 = radius * cos(phi1);
+                float z1 = radius * sin(phi1) * sin(theta);
+                
+                float x2 = radius * sin(phi2) * cos(theta);
+                float y2 = radius * cos(phi2);
+                float z2 = radius * sin(phi2) * sin(theta);
+                
+                glVertex3f(x1, y1, z1);
+                glVertex3f(x2, y2, z2);
+            }
+            glEnd();
+        }
+    }
 public:
     SpotLight() {}
     SpotLight(const PointLight &pointLight, const Vector3D &lightDirection, double cutoffAngle) {
         this->pointLight = pointLight;
         this->lightDirection = lightDirection;
         this->cutoffAngle = cutoffAngle;
+        this->lightDirection.normalize();
     }
 
     void setPointLight(const PointLight &pointLight) {
@@ -318,9 +344,18 @@ public:
         return cutoffAngle;
     }
 
+    void draw() {
+        Vector3D lightPos = pointLight.getLightPos();
+        glPushMatrix();
+        glTranslated(lightPos.getX(), lightPos.getY(), lightPos.getZ());
+        drawSphere(5, 100, 100);
+        glPopMatrix();
+    }
+
 };
 
 extern vector<PointLight *> pointLights;
+extern vector<SpotLight *> spotLights;
 
 class Object {
 protected:
@@ -431,43 +466,72 @@ public:
             else t = min(t_p, t_m);
         }
 
-        if (level == 0) return t;
+        if (level == 0 || t < 0) return t;
 
         Vector3D intersectionPoint = ray.getStart() + t * ray.getDir();
-
         Color intersectionPointColor = this->color;
-        color = intersectionPointColor * coEfficients.getAmbient();
+        color = intersectionPointColor;
+        color = color * coEfficients.getAmbient();
         Vector3D normal = (intersectionPoint - center);
         normal.normalize();
 
         double lambert = 0, phong = 0;
 
         for (PointLight *pointLight : pointLights) {
-            Vector3D toSource = intersectionPoint - pointLight->getLightPos();
+            Vector3D toSource = pointLight->getLightPos() - intersectionPoint;
             double distance = toSource.magnitude();
             toSource.normalize();
-            Ray PS(intersectionPoint + 0.0001 * toSource, toSource);
+            Ray PS(intersectionPoint + 2 * toSource, toSource);
             Ray SP(pointLight->getLightPos(), toSource * (-1));
             Color dummyColor(1, 1, 1);
             double tMin = 1e9;
-            Object *nearestObject = nullptr;
             for (Object *object : objects) {
                 double t = object->intersect(PS, dummyColor, 0);
                 if (t >= 0 && t < tMin) {
                     tMin = t;
-                    nearestObject = object;
                 }
             }
-            if (tMin >= (distance - 0.0001) && nearestObject) {
+            if (tMin >= (distance - 2)) {
                 double scaling_factor = exp(- distance * distance * pointLight->getFalloffParameter());
                 lambert += Vector3D::dot(toSource, normal) * scaling_factor;
-                
-                phong += pow(Vector3D::dot(), shine) * scaling_factor; 
+                Vector3D L = toSource;
+                Vector3D R = L * (-1) + normal * (Vector3D::dot(L, normal)) * 2;
+                phong += pow(Vector3D::dot(R, ray.getDir() * (-1)), shine) * scaling_factor;
                 color = color + intersectionPointColor * coEfficients.getDiffuse() * lambert;
                 color = color + intersectionPointColor * coEfficients.getSpecular() * phong;
             }
         }
         
+        for (SpotLight *spotLight : spotLights) {
+            PointLight pointLight = spotLight->getPointLight();
+            Vector3D toSource = pointLight.getLightPos() - intersectionPoint;
+            double distance = toSource.magnitude();
+            toSource.normalize();
+
+            double angle = acos(Vector3D::dot(toSource * (-1), spotLight->getLightDirection()));
+
+            if (angle > spotLight->getCutoffAngle()) continue;
+            Ray PS(intersectionPoint + 2 * toSource, toSource);
+            Ray SP(pointLight.getLightPos(), toSource * (-1));
+            Color dummyColor(1, 1, 1);
+            double tMin = 1e9;
+            for (Object *object : objects) {
+                double t = object->intersect(PS, dummyColor, 0);
+                if (t >= 0 && t < tMin) {
+                    tMin = t;
+                }
+            }
+            if (tMin >= (distance - 2)) {
+                double scaling_factor = exp(- distance * distance * pointLight.getFalloffParameter());
+                lambert += Vector3D::dot(toSource, normal) * scaling_factor;
+                Vector3D L = toSource;
+                Vector3D R = L * (-1) + normal * (Vector3D::dot(L, normal)) * 2;
+                phong += pow(Vector3D::dot(R, ray.getDir() * (-1)), shine) * scaling_factor;
+                color = color + intersectionPointColor * coEfficients.getDiffuse() * lambert;
+                color = color + intersectionPointColor * coEfficients.getSpecular() * phong;
+            }
+        }
+
         // if (level >= level_of_recursion) return t;
 
         return t;
@@ -630,7 +694,96 @@ public:
     }
 
     double intersect(const Ray &ray, Color &color, int level) const {
-        return -1.0;
+        double t = -1.0;
+
+        Vector3D Ro = ray.getStart();
+        Vector3D Rd = ray.getDir();
+
+        Vector3D normal(0, 0, 1);
+
+        t = (-Vector3D::dot(normal, Ro)) / (Vector3D::dot(normal, Rd));
+        
+        if (level == 0 || t < 0) return t;
+
+        Vector3D intersectionPoint = ray.getStart() + t * ray.getDir();
+
+        Vector3D topLeftPoint(-floorWidth / 2, floorWidth / 2, 0);
+
+        Vector3D diff = intersectionPoint - topLeftPoint;
+
+        int dx = ceil(abs(diff.getX()) / tileWidth);
+        int dy = ceil(abs(diff.getY()) / tileWidth);
+
+        Color tempColor;
+
+        if ((dx + dy) % 2) tempColor = Color(1, 1, 1);
+        else tempColor = Color(0, 0, 0);
+
+        Color intersectionPointColor = tempColor;
+        color = intersectionPointColor;
+        
+        color = color * coEfficients.getAmbient();
+
+        double lambert = 0, phong = 0;
+
+        for (PointLight *pointLight : pointLights) {
+            Vector3D toSource = pointLight->getLightPos() - intersectionPoint;
+            double distance = toSource.magnitude();
+            toSource.normalize();
+            Ray PS(intersectionPoint + 2 * toSource, toSource);
+            Ray SP(pointLight->getLightPos(), toSource * (-1));
+            Color dummyColor(1, 1, 1);
+            double tMin = 1e9;
+            for (Object *object : objects) {
+                double t = object->intersect(PS, dummyColor, 0);
+                if (t >= 0 && t < tMin) {
+                    tMin = t;
+                }
+            }
+            if (tMin >= (distance - 2)) {
+                double scaling_factor = exp(- distance * distance * pointLight->getFalloffParameter());
+                lambert += Vector3D::dot(toSource, normal) * scaling_factor;
+                Vector3D L = toSource;
+                Vector3D R = L * (-1) + normal * (Vector3D::dot(L, normal)) * 2;
+                phong += pow(Vector3D::dot(R, ray.getDir() * (-1)), shine) * scaling_factor;
+                color = color + intersectionPointColor * coEfficients.getDiffuse() * lambert;
+                color = color + intersectionPointColor * coEfficients.getSpecular() * phong;
+            }
+        }
+
+        for (SpotLight *spotLight : spotLights) {
+            PointLight pointLight = spotLight->getPointLight();
+            Vector3D toSource = pointLight.getLightPos() - intersectionPoint;
+            double distance = toSource.magnitude();
+            toSource.normalize();
+
+            double angle = acos(Vector3D::dot(toSource * (-1), spotLight->getLightDirection()));
+
+            if (angle > spotLight->getCutoffAngle()) continue;
+            Ray PS(intersectionPoint + 2 * toSource, toSource);
+            Ray SP(pointLight.getLightPos(), toSource * (-1));
+            Color dummyColor(1, 1, 1);
+            double tMin = 1e9;
+            for (Object *object : objects) {
+                double t = object->intersect(PS, dummyColor, 0);
+                if (t >= 0 && t < tMin) {
+                    tMin = t;
+                }
+            }
+            if (tMin >= (distance - 2)) {
+                double scaling_factor = exp(- distance * distance * pointLight.getFalloffParameter());
+                lambert += Vector3D::dot(toSource, normal) * scaling_factor;
+                Vector3D L = toSource;
+                Vector3D R = L * (-1) + normal * (Vector3D::dot(L, normal)) * 2;
+                phong += pow(Vector3D::dot(R, ray.getDir() * (-1)), shine) * scaling_factor;
+                color = color + intersectionPointColor * coEfficients.getDiffuse() * lambert;
+                color = color + intersectionPointColor * coEfficients.getSpecular() * phong;
+            }
+        }
+        
+        // if (level >= level_of_recursion) return t;
+
+        return t;
     }
 };
 

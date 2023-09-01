@@ -33,7 +33,7 @@ void loadData() {
     double tileWidth;
     double floorAmbientCoEff, floorDiffuseCoEff, floorReflectionCoEff;
     ifs >> tileWidth >> floorAmbientCoEff >> floorDiffuseCoEff >> floorReflectionCoEff;
-    Object *floor = new Floor(1000, tileWidth);
+    Object *floor = new Floor(20000, tileWidth);
     floor->setCoEfficients(CoEfficients(floorAmbientCoEff, floorDiffuseCoEff, 0, floorReflectionCoEff));
     objects.push_back(floor);
     
@@ -99,17 +99,19 @@ void loadData() {
         pointLights.push_back(pointLight);
     }
 
-    // ifs >> number_of_spot_light_sources;
-    // for (int i = 0; i < number_of_spot_light_sources; ++i) {
-    //     PointLight pointLight;
-    //     Vector3D lightDirection;
-    //     double cutoffAngle;
+    ifs >> number_of_spot_light_sources;
+    for (int i = 0; i < number_of_spot_light_sources; ++i) {
+        PointLight pointLight;
+        Vector3D lookingAt;
+        double cutoffAngle;
 
-    //     ifs >> pointLight >> lightDirection >> cutoffAngle;
+        ifs >> pointLight >> lookingAt >> cutoffAngle;
 
-    //     SpotLight *spotLight = new SpotLight(pointLight, lightDirection, cutoffAngle);
-    //     spotLights.push_back(spotLight);
-    // }
+        Vector3D lightDirection = lookingAt - pointLight.getLightPos();
+        cutoffAngle = RAD(cutoffAngle);
+        SpotLight *spotLight = new SpotLight(pointLight, lightDirection, cutoffAngle);
+        spotLights.push_back(spotLight);
+    }
 
     ifs.close(); 
 }
@@ -126,8 +128,10 @@ void initGL() {
 // GLfloat centerx = 0, centery = 0, centerz = 0;
 // GLfloat upx = 0, upy = 0, upz = 1;
 
-Vector3D eye(0, -100, 0);
-Vector3D center(0, 0, 0);
+int fileCount = 0;
+
+Vector3D eye(20, -100, 20);
+Vector3D center(20, 20, 20);
 Vector3D u(0, 0, 1);
 Vector3D l, r;
 
@@ -151,40 +155,28 @@ void capture() {
 
     topLeft = topLeft + r * (0.5 * du) - u * (0.5 * dv);
 
-    // Vector3D pointBuffer[dimension + 1][dimension + 1];
-    vector<vector<double>> t_array(dimension + 1, vector<double>(dimension + 1));
-
     for (int i = 1; i <= dimension; ++i) {
         for (int j = 1; j <= dimension; ++j) {
             Vector3D curPixel = topLeft + (i - 1) * du * r - (j - 1) * dv * u;
-            // pointBuffer[i][j] = curPixel;
             Ray ray(curPixel, curPixel - eye);
-            Color color, dummyColor;
+            Color color(0, 0, 0), dummyColor;
             double tMin = 1e9;
             Object *nearestObject = nullptr;
             for (Object *object : objects) {
                 double t = object->intersect(ray, dummyColor, 0);
-                t_array[j][i] = t;
                 if (t >= 0 && t < tMin) {
                     tMin = t;
                     nearestObject = object;
                 }
             }
-            if (!nearestObject || tMin < 0) continue;
+            if (!nearestObject || tMin < 0 || tMin > 20000) continue;
             tMin = nearestObject->intersect(ray, color, 1);
             bmp.set_pixel(i, j, color.getR() * 255, color.getG() * 255, color.getB() * 255);
         }
     }
-    bmp.save_image("out.bmp");
 
-    ofstream ofs("t_val.txt");
-    for (int i = 1; i <= dimension; ++i) {
-        for (int j = 1; j <= dimension; ++j) {
-            ofs << t_array[i][j] << " ";
-        }
-        ofs << "\n";
-    }
-    ofs.close();
+    bmp.save_image("out-" + to_string(fileCount) + ".bmp");
+    fileCount++;
 }
 
 /* Draw axes: X in Red, Y in Green and Z in Blue */
@@ -232,6 +224,10 @@ void display() {
 
     for (PointLight *pointLight : pointLights) {
         pointLight->draw();
+    }
+
+    for (SpotLight *spotLight : spotLights) {
+        spotLight->draw();
     }
 
     glutSwapBuffers();  // Render now
