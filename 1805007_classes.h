@@ -228,6 +228,10 @@ public:
     }
 };
 
+bool EQ(double a, double b) {
+    if (abs(a - b) <= 1e-3) return true;
+    return false;
+}
 
 class PointLight {
 private:
@@ -503,17 +507,16 @@ public:
             Vector3D toSource = pointLight->getLightPos() - intersectionPoint;
             double distance = toSource.magnitude();
             toSource.normalize();
-            Ray PS(intersectionPoint + 2 * toSource, toSource);
             Ray SP(pointLight->getLightPos(), toSource * (-1));
             Color dummyColor(1, 1, 1);
             double tMin = 1e9;
             for (Object *object : objects) {
-                double t = object->intersect(PS, dummyColor, level_of_recursion + 1);
+                double t = object->intersect(SP, dummyColor, level_of_recursion + 1);
                 if (t >= 0 && t < tMin) {
                     tMin = t;
                 }
             }
-            if (tMin >= (distance - 2)) {
+            if (EQ(tMin, distance)) {
                 double scaling_factor = exp(- distance * distance * pointLight->getFalloffParameter());
                 lambert += Vector3D::dot(toSource, normal) * scaling_factor;
                 Vector3D L = toSource;
@@ -533,17 +536,16 @@ public:
             double angle = acos(Vector3D::dot(toSource * (-1), spotLight->getLightDirection()));
 
             if (angle > spotLight->getCutoffAngle()) continue;
-            Ray PS(intersectionPoint + 2 * toSource, toSource);
             Ray SP(pointLight.getLightPos(), toSource * (-1));
             Color dummyColor(1, 1, 1);
             double tMin = 1e9;
             for (Object *object : objects) {
-                double t = object->intersect(PS, dummyColor, level_of_recursion + 1);
+                double t = object->intersect(SP, dummyColor, level_of_recursion + 1);
                 if (t >= 0 && t < tMin) {
                     tMin = t;
                 }
             }
-            if (tMin >= (distance - 2)) {
+            if (EQ(tMin, distance)) {
                 double scaling_factor = exp(- distance * distance * pointLight.getFalloffParameter());
                 lambert += Vector3D::dot(toSource, normal) * scaling_factor;
                 Vector3D L = toSource;
@@ -779,17 +781,16 @@ public:
             Vector3D toSource = pointLight->getLightPos() - intersectionPoint;
             double distance = toSource.magnitude();
             toSource.normalize();
-            Ray PS(intersectionPoint + 2 * toSource, toSource);
             Ray SP(pointLight->getLightPos(), toSource * (-1));
             Color dummyColor(1, 1, 1);
             double tMin = 1e9;
             for (Object *object : objects) {
-                double t = object->intersect(PS, dummyColor, level_of_recursion + 1);
+                double t = object->intersect(SP, dummyColor, level_of_recursion + 1);
                 if (t >= 0 && t < tMin) {
                     tMin = t;
                 }
             }
-            if (tMin >= (distance - 2)) {
+            if (EQ(tMin, distance)) {
                 double scaling_factor = exp(- distance * distance * pointLight->getFalloffParameter());
                 lambert += Vector3D::dot(toSource, normal) * scaling_factor;
                 Vector3D L = toSource;
@@ -808,17 +809,16 @@ public:
             double angle = acos(Vector3D::dot(toSource * (-1), spotLight->getLightDirection()));
 
             if (angle > spotLight->getCutoffAngle()) continue;
-            Ray PS(intersectionPoint + 2 * toSource, toSource);
             Ray SP(pointLight.getLightPos(), toSource * (-1));
             Color dummyColor(1, 1, 1);
             double tMin = 1e9;
             for (Object *object : objects) {
-                double t = object->intersect(PS, dummyColor, level_of_recursion + 1);
+                double t = object->intersect(SP, dummyColor, level_of_recursion + 1);
                 if (t >= 0 && t < tMin) {
                     tMin = t;
                 }
             }
-            if (tMin >= (distance - 2)) {
+            if (EQ(tMin, distance)) {
                 double scaling_factor = exp(- distance * distance * pointLight.getFalloffParameter());
                 lambert += Vector3D::dot(toSource, normal) * scaling_factor;
                 Vector3D L = toSource;
