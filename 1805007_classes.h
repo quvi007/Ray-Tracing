@@ -96,6 +96,15 @@ public:
         this->r = r;
         this->g = g;
         this->b = b;
+
+        if (r < 0) r = 0;
+        if (g < 0) g = 0;
+        if (b < 0) b = 0;
+
+        if (r > 1) r = 1;
+        if (g > 1) g = 1;
+        if (b > 1) b = 1;
+
     }
 
     void setR(double r) {
@@ -127,7 +136,10 @@ public:
     }
 
     Color operator+(const Color &obj) const {
-        return Color(r + obj.r, g + obj.g, b + obj.b);
+        double rr = r + obj.r;
+        double gg = g + obj.g;
+        double bb = b + obj.b;
+        return Color(rr, gg, bb);
     }
 };
 
@@ -399,6 +411,7 @@ public:
 };
 
 extern vector<Object *> objects;
+extern Vector3D eye;
 
 class Sphere : public Object {
 private:
@@ -443,6 +456,11 @@ public:
     }
 
     double intersect(const Ray &ray, Color &color, int level) const {
+        if (level == 0) {
+            color = Color(0, 0, 0);
+            return -1.0;
+        }
+
         double t = -1.0;
         
         Vector3D Ro = ray.getStart();
@@ -470,7 +488,7 @@ public:
 
         color = Color(0, 0, 0);
 
-        if (level == 0 || t < 0) return t;
+        if (level == level_of_recursion + 1 || t < 0) return t;
 
         Vector3D intersectionPoint = ray.getStart() + t * ray.getDir();
         Color intersectionPointColor = this->color;
@@ -490,7 +508,7 @@ public:
             Color dummyColor(1, 1, 1);
             double tMin = 1e9;
             for (Object *object : objects) {
-                double t = object->intersect(PS, dummyColor, 0);
+                double t = object->intersect(PS, dummyColor, level_of_recursion + 1);
                 if (t >= 0 && t < tMin) {
                     tMin = t;
                 }
@@ -503,24 +521,6 @@ public:
                 phong += pow(Vector3D::dot(R, ray.getDir() * (-1)), shine) * scaling_factor;
                 color = color + intersectionPointColor * coEfficients.getDiffuse() * lambert;
                 color = color + intersectionPointColor * coEfficients.getSpecular() * phong;
-
-                Ray reflectedRay(intersectionPoint + 2 * toSource, R);
-
-
-                Color nextColor(0, 0, 0), nextDummyColor;
-                double nextTMin = 1e9;
-                Object *nextNearestObject = nullptr;
-                for (Object *nextObject : objects) {
-                    double nextT = nextObject->intersect(reflectedRay, nextDummyColor, 0);
-                    if (nextT >= 0 && nextT < nextTMin) {
-                        nextTMin = nextT;
-                        nextNearestObject = nextObject;
-                    }
-                }
-                if (!nextNearestObject || nextTMin < 0 || nextTMin > 20000) continue;
-                nextTMin = nextNearestObject->intersect(reflectedRay, nextColor, level + 1);
-
-                color = color + nextColor * coEfficients.getReflection();
             }
         }
         
@@ -538,7 +538,7 @@ public:
             Color dummyColor(1, 1, 1);
             double tMin = 1e9;
             for (Object *object : objects) {
-                double t = object->intersect(PS, dummyColor, 0);
+                double t = object->intersect(PS, dummyColor, level_of_recursion + 1);
                 if (t >= 0 && t < tMin) {
                     tMin = t;
                 }
@@ -551,29 +551,33 @@ public:
                 phong += pow(Vector3D::dot(R, ray.getDir() * (-1)), shine) * scaling_factor;
                 color = color + intersectionPointColor * coEfficients.getDiffuse() * lambert;
                 color = color + intersectionPointColor * coEfficients.getSpecular() * phong;
-
-                Ray reflectedRay(intersectionPoint + 2 * toSource, R);
-
-
-                Color nextColor(0, 0, 0), nextDummyColor;
-                double nextTMin = 1e9;
-                Object *nextNearestObject = nullptr;
-                for (Object *nextObject : objects) {
-                    double nextT = nextObject->intersect(reflectedRay, nextDummyColor, 0);
-                    if (nextT >= 0 && nextT < nextTMin) {
-                        nextTMin = nextT;
-                        nextNearestObject = nextObject;
-                    }
-                }
-                if (!nextNearestObject || nextTMin < 0 || nextTMin > 20000) continue;
-                nextTMin = nextNearestObject->intersect(reflectedRay, nextColor, level + 1);
-
-                color = color + nextColor * coEfficients.getReflection();
             }
         }
 
-        return t;
+        Vector3D toCamera = eye - intersectionPoint;
+        toCamera.normalize();
 
+        Vector3D reflectedVector = toCamera * (-1) + normal * (Vector3D::dot(toCamera, normal)) * 2;
+        reflectedVector.normalize();
+
+        Ray reflectedRay(intersectionPoint + 2 * reflectedVector, reflectedVector);
+
+        Color nextColor(0, 0, 0), nextDummyColor;
+        double nextTMin = 1e9;
+        Object *nextNearestObject = nullptr;
+        for (Object *nextObject : objects) {
+            double nextT = nextObject->intersect(reflectedRay, nextDummyColor, level_of_recursion + 1);
+            if (nextT >= 0 && nextT < nextTMin) {
+                nextTMin = nextT;
+                nextNearestObject = nextObject;
+            }
+        }
+        if (!nextNearestObject || nextTMin < 0 || nextTMin > 20000) return t;
+        nextTMin = nextNearestObject->intersect(reflectedRay, nextColor, level - 1);
+
+        color = color + nextColor * coEfficients.getReflection();
+
+        return t;
     }
 };
 
@@ -732,7 +736,7 @@ public:
     }
 
     double intersect(const Ray &ray, Color &color, int level) const {
-        if (level > level_of_recursion) {
+        if (level == 0) {
             color = Color(0, 0, 0);
             return -1.0;
         }
@@ -748,7 +752,7 @@ public:
         
         color = Color(0, 0, 0);
 
-        if (level == 0 || t < 0) return t;
+        if (level == level_of_recursion + 1 || t < 0) return t;
 
         Vector3D intersectionPoint = ray.getStart() + t * ray.getDir();
 
@@ -780,7 +784,7 @@ public:
             Color dummyColor(1, 1, 1);
             double tMin = 1e9;
             for (Object *object : objects) {
-                double t = object->intersect(PS, dummyColor, 0);
+                double t = object->intersect(PS, dummyColor, level_of_recursion + 1);
                 if (t >= 0 && t < tMin) {
                     tMin = t;
                 }
@@ -792,24 +796,6 @@ public:
                 Vector3D R = L * (-1) + normal * (Vector3D::dot(L, normal)) * 2;
                 phong += pow(Vector3D::dot(R, ray.getDir() * (-1)), shine) * scaling_factor;
                 color = color + intersectionPointColor * coEfficients.getDiffuse() * lambert;
-
-                Ray reflectedRay(intersectionPoint + 2 * toSource, R);
-
-
-                Color nextColor(0, 0, 0), nextDummyColor;
-                double nextTMin = 1e9;
-                Object *nextNearestObject = nullptr;
-                for (Object *nextObject : objects) {
-                    double nextT = nextObject->intersect(reflectedRay, nextDummyColor, 0);
-                    if (nextT >= 0 && nextT < nextTMin) {
-                        nextTMin = nextT;
-                        nextNearestObject = nextObject;
-                    }
-                }
-                if (!nextNearestObject || nextTMin < 0 || nextTMin > 20000) continue;
-                nextTMin = nextNearestObject->intersect(reflectedRay, nextColor, level + 1);
-
-                color = color + nextColor * coEfficients.getReflection();
             }
         }
 
@@ -818,7 +804,7 @@ public:
             Vector3D toSource = pointLight.getLightPos() - intersectionPoint;
             double distance = toSource.magnitude();
             toSource.normalize();
-
+ 
             double angle = acos(Vector3D::dot(toSource * (-1), spotLight->getLightDirection()));
 
             if (angle > spotLight->getCutoffAngle()) continue;
@@ -827,7 +813,7 @@ public:
             Color dummyColor(1, 1, 1);
             double tMin = 1e9;
             for (Object *object : objects) {
-                double t = object->intersect(PS, dummyColor, 0);
+                double t = object->intersect(PS, dummyColor, level_of_recursion + 1);
                 if (t >= 0 && t < tMin) {
                     tMin = t;
                 }
@@ -839,25 +825,31 @@ public:
                 Vector3D R = L * (-1) + normal * (Vector3D::dot(L, normal)) * 2;
                 phong += pow(Vector3D::dot(R, ray.getDir() * (-1)), shine) * scaling_factor;
                 color = color + intersectionPointColor * coEfficients.getDiffuse() * lambert;
-                Ray reflectedRay(intersectionPoint + 2 * toSource, R);
-
-
-                Color nextColor(0, 0, 0), nextDummyColor;
-                double nextTMin = 1e9;
-                Object *nextNearestObject = nullptr;
-                for (Object *nextObject : objects) {
-                    double nextT = nextObject->intersect(reflectedRay, nextDummyColor, 0);
-                    if (nextT >= 0 && nextT < nextTMin) {
-                        nextTMin = nextT;
-                        nextNearestObject = nextObject;
-                    }
-                }
-                if (!nextNearestObject || nextTMin < 0 || nextTMin > 20000) continue;
-                nextTMin = nextNearestObject->intersect(reflectedRay, nextColor, level + 1);
-
-                color = color + nextColor * coEfficients.getReflection();
             }
         }
+
+        Vector3D toCamera = eye - intersectionPoint;
+        toCamera.normalize();
+
+        Vector3D reflectedVector = toCamera * (-1) + normal * (Vector3D::dot(toCamera, normal)) * 2;
+        reflectedVector.normalize();
+
+        Ray reflectedRay(intersectionPoint + 2 * reflectedVector, reflectedVector);
+
+        Color nextColor(0, 0, 0), nextDummyColor;
+        double nextTMin = 1e9;
+        Object *nextNearestObject = nullptr;
+        for (Object *nextObject : objects) {
+            double nextT = nextObject->intersect(reflectedRay, nextDummyColor, level_of_recursion + 1);
+            if (nextT >= 0 && nextT < nextTMin) {
+                nextTMin = nextT;
+                nextNearestObject = nextObject;
+            }
+        }
+        if (!nextNearestObject || nextTMin < 0 || nextTMin > 20000) return t;
+        nextTMin = nextNearestObject->intersect(reflectedRay, nextColor, level - 1);
+
+        color = color + nextColor * coEfficients.getReflection();
 
         return t;
     }

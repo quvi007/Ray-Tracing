@@ -163,14 +163,14 @@ void capture() {
             double tMin = 1e9;
             Object *nearestObject = nullptr;
             for (Object *object : objects) {
-                double t = object->intersect(ray, dummyColor, 0);
+                double t = object->intersect(ray, dummyColor, level_of_recursion + 1);
                 if (t >= 0 && t < tMin) {
                     tMin = t;
                     nearestObject = object;
                 }
             }
             if (!nearestObject || tMin < 0 || tMin > 20000) continue;
-            tMin = nearestObject->intersect(ray, color, 1);
+            tMin = nearestObject->intersect(ray, color, level_of_recursion);
             bmp.set_pixel(i, j, color.getR() * 255, color.getG() * 255, color.getB() * 255);
         }
     }
