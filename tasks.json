@@ -1,0 +1,25 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "g++",
+            "args": [
+                "1805007_main.cpp",
+                "Matrix.cpp",
+                "Point.cpp",
+                "Rotation.cpp",
+                "-o",
+                "main",
+                "-lglut",
+                "-lGLU",
+                "-lGL"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}

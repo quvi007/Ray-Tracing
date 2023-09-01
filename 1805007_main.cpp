@@ -114,15 +114,6 @@ void loadData() {
     ifs.close(); 
 }
 
-void capture() {
-    // initialize bitmap image and set background color
-    // double windowHeight = 2 * nearDistance * tan(fovY / 2);
-    
-    // Vector3D topLeft = 
-}
-
-
-
 /* Initialize OpenGL Graphics */
 void initGL() {
     // Set "clearing" or background color
@@ -139,6 +130,62 @@ Vector3D eye(0, -100, 0);
 Vector3D center(0, 0, 0);
 Vector3D u(0, 0, 1);
 Vector3D l, r;
+
+void calculateLR() {
+    l = center - eye;
+    l = l * (1 / sqrt(Vector3D::dot(l, l)));
+    r = l * u;
+    r = r * (1 / sqrt(Vector3D::dot(r, r)));
+}
+
+void capture() {
+    double fovX = aspectRatio * fovY;
+    calculateLR();
+
+    bitmap_image bmp(dimension, dimension);
+    double windowHeight = 2 * nearDistance * tan(RAD(fovY / 2));
+    double windowWidth = 2 * nearDistance * tan(RAD(fovX / 2));
+    Vector3D topLeft = eye + l * nearDistance - r * (windowWidth / 2) + u * (windowHeight / 2);
+    double du = windowWidth / dimension;
+    double dv = windowHeight / dimension;
+
+    topLeft = topLeft + r * (0.5 * du) - u * (0.5 * dv);
+
+    // Vector3D pointBuffer[dimension + 1][dimension + 1];
+    vector<vector<double>> t_array(dimension + 1, vector<double>(dimension + 1));
+
+    for (int i = 1; i <= dimension; ++i) {
+        for (int j = 1; j <= dimension; ++j) {
+            Vector3D curPixel = topLeft + (i - 1) * du * r - (j - 1) * dv * u;
+            // pointBuffer[i][j] = curPixel;
+            Ray ray(curPixel, curPixel - eye);
+            Color color, dummyColor;
+            double tMin = 1e9;
+            Object *nearestObject = nullptr;
+            for (Object *object : objects) {
+                double t = object->intersect(ray, dummyColor, 0);
+                t_array[j][i] = t;
+                if (t >= 0 && t < tMin) {
+                    tMin = t;
+                    nearestObject = object;
+                }
+            }
+            if (!nearestObject || tMin < 0) continue;
+            tMin = nearestObject->intersect(ray, color, 1);
+            bmp.set_pixel(i, j, color.getR() * 255, color.getG() * 255, color.getB() * 255);
+        }
+    }
+    bmp.save_image("out.bmp");
+
+    ofstream ofs("t_val.txt");
+    for (int i = 1; i <= dimension; ++i) {
+        for (int j = 1; j <= dimension; ++j) {
+            ofs << t_array[i][j] << " ";
+        }
+        ofs << "\n";
+    }
+    ofs.close();
+}
 
 /* Draw axes: X in Red, Y in Green and Z in Blue */
 void drawAxes() {
@@ -219,10 +266,7 @@ void keyboardListener(unsigned char key, int x, int y) {
     double speed = 10;
     Rotation rotation;
 
-    l = center - eye;
-    l = l * (1 / sqrt(Vector3D::dot(l, l)));
-    r = l * u;
-    r = r * (1 / sqrt(Vector3D::dot(r, r)));
+    calculateLR();
 
     Point temp;
 
@@ -290,10 +334,7 @@ void keyboardListener(unsigned char key, int x, int y) {
 void specialKeyListener(int key, int x, int y) {
     double speed = 10;
 
-    l = center - eye;
-    l = l * (1 / sqrt(Vector3D::dot(l, l)));
-    r = l * u;
-    r = r * (1 / sqrt(Vector3D::dot(r, r)));
+    calculateLR();
 
     switch (key) {
         case GLUT_KEY_LEFT:
