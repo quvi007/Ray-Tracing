@@ -11,6 +11,8 @@
 
 extern int level_of_recursion;
 
+bool reflectionOn = true;
+
 class Vector3D {
 private:
     double x, y, z;
@@ -50,6 +52,14 @@ public:
         return z;
     }
 
+    bool operator==(const Vector3D &obj) const {
+        return x == obj.x && y == obj.y && z == obj.z;
+    }
+
+    bool operator!=(const Vector3D &obj) const {
+        return x != obj.x || y != obj.y || z != obj.z;
+    }
+
     Vector3D operator+(const Vector3D &obj) const {
         return Vector3D(x + obj.x, y + obj.y, z + obj.z);
     }
@@ -84,6 +94,43 @@ public:
     }
 };
 
+bool triangleContainsPoint(const Vector3D &a, const Vector3D &b, const Vector3D &c, const Vector3D &p) {
+    if (p == a || p == b || p == c) return true;
+    double a1 = b.getX() - a.getX();
+    double b1 = c.getX() - a.getX();
+    double a2 = b.getY() - a.getY();
+    double b2 = c.getY() - a.getY();
+    double a3 = b.getZ() - a.getZ();
+    double b3 = c.getZ() - a.getZ();
+    double c1 = a.getX() - p.getX();
+    double c2 = a.getY() - p.getY();
+    double c3 = a.getZ() - p.getZ();
+
+    double alpha, beta;
+
+    if (a1 * b2 - a2 * b1 != 0) {
+        alpha = (b1 * c2 - b2 * c1) / (a1 * b2 - a2 * b1);
+        beta = (c1 * a2 - c2 * a1) / (a1 * b2 - a2 * b1);
+    } else if (a1 * b3 - a3 * b1 != 0) {
+        alpha = (b1 * c3 - b3 * c1) / (a1 * b3 - a3 * b1);
+        beta = (c1 * a3 - c3 * a1) / (a1 * b3 - a3 * b1);
+    } else if (a2 * b3 - a3 * b2 != 0) {
+        alpha = (b2 * c3 - b3 * c2) / (a2 * b3 - a3 * b2);
+        beta = (c2 * a3 - c3 * a2) / (a2 * b3 - a3 * b2);
+    } else return false;
+
+    if (alpha >= 0.0 && alpha <= 1.0 && beta >= 0.0 && beta <= 1.0 && (alpha + beta) <= 1.0) {
+        return true;
+    }
+    return false;
+}
+
+bool rectangleContainsPoint(const Vector3D &a, const Vector3D &b, const Vector3D &c, const Vector3D &d, const Vector3D &p) {
+    bool ans = triangleContainsPoint(a, b, d, p) || triangleContainsPoint(b, c, d, p);
+    if (ans) cout << p << "\n";
+    return ans;
+}
+
 class Color {
 private:
     double r, g, b;
@@ -96,15 +143,6 @@ public:
         this->r = r;
         this->g = g;
         this->b = b;
-
-        if (r < 0) r = 0;
-        if (g < 0) g = 0;
-        if (b < 0) b = 0;
-
-        if (r > 1) r = 1;
-        if (g > 1) g = 1;
-        if (b > 1) b = 1;
-
     }
 
     void setR(double r) {
@@ -241,7 +279,7 @@ private:
     friend istream &operator>>(istream &is, PointLight &pointLight);
     friend ostream &operator<<(ostream &os, const PointLight &pointLight);
 
-    void drawSphere(double radius, int numStacks, int numSlices) {
+    void drawSphere(double radius, int numStacks, int numSlices) const {
         glColor3d(0.8, 0.8, 0.8);
         for (int i = 0; i < numStacks; ++i) {
             float phi1 = static_cast<float>(M_PI) * static_cast<float>(i) / numStacks;
@@ -272,7 +310,7 @@ public:
         this->falloffParameter = falloffParameter;
     }
 
-    void draw() {
+    void draw() const {
         glPushMatrix();
         glTranslated(lightPos.getX(), lightPos.getY(), lightPos.getZ());
         drawSphere(5, 100, 100);
@@ -305,7 +343,7 @@ private:
     friend istream &operator>>(istream &is, SpotLight &spotLight);
     friend ostream &operator<<(ostream &os, const SpotLight &spotLight);
 
-    void drawSphere(double radius, int numStacks, int numSlices) {
+    void drawSphere(double radius, int numStacks, int numSlices) const {
         glColor3d(0.8, 0.8, 0.0);
         for (int i = 0; i < numStacks; ++i) {
             float phi1 = static_cast<float>(M_PI) * static_cast<float>(i) / numStacks;
@@ -335,7 +373,6 @@ public:
         this->pointLight = pointLight;
         this->lightDirection = lightDirection;
         this->cutoffAngle = cutoffAngle;
-        this->lightDirection.normalize();
     }
 
     void setPointLight(const PointLight &pointLight) {
@@ -362,7 +399,7 @@ public:
         return cutoffAngle;
     }
 
-    void draw() {
+    void draw() const {
         Vector3D lightPos = pointLight.getLightPos();
         glPushMatrix();
         glTranslated(lightPos.getX(), lightPos.getY(), lightPos.getZ());
@@ -381,6 +418,8 @@ protected:
     CoEfficients coEfficients; // ambient, diffuse, specular, reflection coEfficients
     int shine; // exponent term of specular component
 public:
+    string name;
+    
     Object() {}
 
     virtual void draw() const {}
@@ -450,6 +489,7 @@ public:
     Sphere(const Vector3D &center, double radius) {
         this->center = center;
         this->radius = radius;
+        this->name = "sphere";
     }
     
     void draw() const {
@@ -550,148 +590,316 @@ public:
                 lambert += Vector3D::dot(toSource, normal) * scaling_factor;
                 Vector3D L = toSource;
                 Vector3D R = L * (-1) + normal * (Vector3D::dot(L, normal)) * 2;
+                phong += pow(Vector3D::dot(R, ray.getDir()), shine) * scaling_factor;
+                color = color + intersectionPointColor * coEfficients.getDiffuse() * lambert;
+                color = color + intersectionPointColor * coEfficients.getSpecular() * phong;
+            }
+        }
+
+        if (reflectionOn) {
+            Vector3D toCamera = eye - intersectionPoint;
+            toCamera.normalize();
+
+            Vector3D reflectedVector = toCamera * (-1) + normal * (Vector3D::dot(toCamera, normal)) * 2;
+            reflectedVector.normalize();
+
+            Ray reflectedRay(intersectionPoint + 0.0001 * reflectedVector, reflectedVector);
+
+            Color nextColor(0, 0, 0), nextDummyColor;
+            double nextTMin = 1e9;
+            Object *nextNearestObject = nullptr;
+            for (Object *nextObject : objects) {
+                double nextT = nextObject->intersect(reflectedRay, nextDummyColor, level_of_recursion + 1);
+                if (nextT >= 0 && nextT < nextTMin) {
+                    nextTMin = nextT;
+                    nextNearestObject = nextObject;
+                }
+            }
+            if (!nextNearestObject || nextTMin < 0 || nextTMin > 20000) return t;
+            nextTMin = nextNearestObject->intersect(reflectedRay, nextColor, level - 1);
+
+            color = color + nextColor * coEfficients.getReflection();
+        }
+        return t;
+    }
+};
+
+class Triangle : public Object {
+private:
+    Vector3D a, b, c;
+    void drawTriangle() const {
+        glColor3d(color.getR(), color.getG(), color.getB());
+        glBegin(GL_TRIANGLES);
+            glVertex3d(a.getX(), a.getY(), a.getZ());
+            glVertex3d(b.getX(), b.getY(), b.getZ());
+            glVertex3d(c.getX(), c.getY(), c.getZ());
+        glEnd();
+    }   
+public:
+    Triangle() {}
+    Triangle(const Vector3D &a, const Vector3D &b, const Vector3D &c) {
+        this->a = a;
+        this->b = b;
+        this->c = c;
+        this->name = "triangle";
+    }
+    void draw() const {
+        glPushMatrix();
+        drawTriangle();
+        glPopMatrix();
+    }
+
+    double intersect(const Ray &ray, Color &color, int level) const {
+        if (level == 0) {
+            color = Color(0, 0, 0);
+            return -1.0;
+        }
+
+        double t = -1.0;
+
+        Vector3D Ro = ray.getStart();
+        Vector3D Rd = ray.getDir();
+
+        Vector3D normal = (b - a) * (c - a);
+        normal.normalize();
+
+        t = (-(-Vector3D::dot(normal, a) + Vector3D::dot(normal, Ro))) / (Vector3D::dot(normal, Rd));
+        // cout << t << endl;
+        color = Color(0, 0, 0);
+
+        Vector3D intersectionPoint = ray.getStart() + t * ray.getDir();
+
+        if (!triangleContainsPoint(a, b, c, intersectionPoint)) 
+            t = -1.0;
+
+        if (level == level_of_recursion + 1 || t < 0) return t;
+
+        Color intersectionPointColor = this->color;
+        color = intersectionPointColor;
+        
+        color = color * coEfficients.getAmbient();
+
+        double lambert = 0, phong = 0;
+
+        for (PointLight *pointLight : pointLights) {
+            Vector3D toSource = pointLight->getLightPos() - intersectionPoint;
+            double distance = toSource.magnitude();
+            toSource.normalize();
+            Ray SP(pointLight->getLightPos(), toSource * (-1));
+            Color dummyColor(1, 1, 1);
+            double tMin = 1e9;
+            for (Object *object : objects) {
+                double t = object->intersect(SP, dummyColor, level_of_recursion + 1);
+                if (t >= 0 && t < tMin) {
+                    tMin = t;
+                }
+            }
+            if (EQ(tMin, distance)) {
+                double scaling_factor = exp(- distance * distance * pointLight->getFalloffParameter());
+                lambert += Vector3D::dot(toSource, normal) * scaling_factor;
+                Vector3D L = toSource;
+                Vector3D R = L * (-1) + normal * (Vector3D::dot(L, normal)) * 2;
                 phong += pow(Vector3D::dot(R, ray.getDir() * (-1)), shine) * scaling_factor;
                 color = color + intersectionPointColor * coEfficients.getDiffuse() * lambert;
                 color = color + intersectionPointColor * coEfficients.getSpecular() * phong;
             }
         }
 
-        Vector3D toCamera = eye - intersectionPoint;
-        toCamera.normalize();
+        for (SpotLight *spotLight : spotLights) {
+            PointLight pointLight = spotLight->getPointLight();
+            Vector3D toSource = pointLight.getLightPos() - intersectionPoint;
+            double distance = toSource.magnitude();
+            toSource.normalize();
+ 
+            double angle = acos(Vector3D::dot(toSource * (-1), spotLight->getLightDirection()));
 
-        Vector3D reflectedVector = toCamera * (-1) + normal * (Vector3D::dot(toCamera, normal)) * 2;
-        reflectedVector.normalize();
-
-        Ray reflectedRay(intersectionPoint + 2 * reflectedVector, reflectedVector);
-
-        Color nextColor(0, 0, 0), nextDummyColor;
-        double nextTMin = 1e9;
-        Object *nextNearestObject = nullptr;
-        for (Object *nextObject : objects) {
-            double nextT = nextObject->intersect(reflectedRay, nextDummyColor, level_of_recursion + 1);
-            if (nextT >= 0 && nextT < nextTMin) {
-                nextTMin = nextT;
-                nextNearestObject = nextObject;
+            if (angle > spotLight->getCutoffAngle()) continue;
+            Ray SP(pointLight.getLightPos(), toSource * (-1));
+            Color dummyColor(1, 1, 1);
+            double tMin = 1e9;
+            for (Object *object : objects) {
+                double t = object->intersect(SP, dummyColor, level_of_recursion + 1);
+                if (t >= 0 && t < tMin) {
+                    tMin = t;
+                }
+            }
+            if (EQ(tMin, distance)) {
+                double scaling_factor = exp(- distance * distance * pointLight.getFalloffParameter());
+                lambert += Vector3D::dot(toSource, normal) * scaling_factor;
+                Vector3D L = toSource;
+                Vector3D R = L * (-1) + normal * (Vector3D::dot(L, normal)) * 2;
+                phong += pow(Vector3D::dot(R, ray.getDir() * (-1)), shine) * scaling_factor;
+                color = color + intersectionPointColor * coEfficients.getDiffuse() * lambert;
+                color = color + intersectionPointColor * coEfficients.getSpecular() * phong;
             }
         }
-        if (!nextNearestObject || nextTMin < 0 || nextTMin > 20000) return t;
-        nextTMin = nextNearestObject->intersect(reflectedRay, nextColor, level - 1);
 
-        color = color + nextColor * coEfficients.getReflection();
+        if (reflectionOn) {
+            Vector3D toCamera = eye - intersectionPoint;
+            toCamera.normalize();
+
+            Vector3D reflectedVector = toCamera * (-1) + normal * (Vector3D::dot(toCamera, normal)) * 2;
+            reflectedVector.normalize();
+
+            Ray reflectedRay(intersectionPoint + 0.0001 * reflectedVector, reflectedVector);
+
+            Color nextColor(0, 0, 0), nextDummyColor;
+            double nextTMin = 1e9;
+            Object *nextNearestObject = nullptr;
+            for (Object *nextObject : objects) {
+                double nextT = nextObject->intersect(reflectedRay, nextDummyColor, level_of_recursion + 1);
+                if (nextT >= 0 && nextT < nextTMin) {
+                    nextTMin = nextT;
+                    nextNearestObject = nextObject;
+                }
+            }
+            if (!nextNearestObject || nextTMin < 0 || nextTMin > 20000) return t;
+            nextTMin = nextNearestObject->intersect(reflectedRay, nextColor, level - 1);
+
+            color = color + nextColor * coEfficients.getReflection();
+        }
 
         return t;
     }
 };
 
-class Pyramid : public Object {
+class Rectangle : public Object {
 private:
-    Vector3D lowest_point;
-    double width;
-    double height;
-
-    void drawPyramid() const {
+    Vector3D a, b, c, d;
+    void drawRectangle() const {
         glColor3d(color.getR(), color.getG(), color.getB());
         glBegin(GL_QUADS);
-            glVertex3d(0, 0, 0);
-            glVertex3d(width, 0, 0);
-            glVertex3d(width, width, 0);
-            glVertex3d(0, width, 0);
-        glEnd();
-        glBegin(GL_TRIANGLES);
-            glVertex3d(0, 0, 0);
-            glVertex3d(width, 0, 0);
-            glVertex3d(width / 2, width / 2, height);
-
-            glVertex3d(width, 0, 0);
-            glVertex3d(width, width, 0);
-            glVertex3d(width / 2, width / 2, height);
-
-            glVertex3d(width, width, 0);
-            glVertex3d(0, width, 0);
-            glVertex3d(width / 2, width / 2, height);
-
-            glVertex3d(0, width, 0);
-            glVertex3d(0, 0, 0);
-            glVertex3d(width / 2, width / 2, height);
+            glVertex3d(a.getX(), a.getY(), a.getZ());
+            glVertex3d(b.getX(), b.getY(), b.getZ());
+            glVertex3d(c.getX(), c.getY(), c.getZ());
+            glVertex3d(d.getX(), d.getY(), d.getZ());
         glEnd();
     }
 public:
-    Pyramid() {}
-    Pyramid(const Vector3D &lowest_point, double width, double height) {
-        this->lowest_point = lowest_point;
-        this->width = width;
-        this->height = height;
+    Rectangle() {}
+    Rectangle(const Vector3D &a, const Vector3D &b, const Vector3D &c, const Vector3D &d) {
+        this->a = a;
+        this->b = b;
+        this->c = c;
+        this->d = d;
+        this->name = "rectangle";
     }
-
     void draw() const {
         glPushMatrix();
-        glTranslated(lowest_point.getX(), lowest_point.getY(), lowest_point.getZ());
-        drawPyramid();
+        drawRectangle();
         glPopMatrix();
     }
-
+    
     double intersect(const Ray &ray, Color &color, int level) const {
-        // implement
-        return -1.0;
-    }
-};
+        if (level == 0) {
+            color = Color(0, 0, 0);
+            return -1.0;
+        }
 
-class Cube : public Object {
-private:
-    Vector3D bottom_lower_left_point;
-    double side;
+        double t = -1.0;
 
-    void drawCube() const {
-        glColor3d(color.getR(), color.getG(), color.getB());
-        glBegin(GL_QUADS);
-            glVertex3d(0, 0, 0);
-            glVertex3d(side, 0, 0);
-            glVertex3d(side, side, 0);
-            glVertex3d(0, side, 0);
+        Vector3D Ro = ray.getStart();
+        Vector3D Rd = ray.getDir();
 
-            glVertex3d(0, 0, 0);
-            glVertex3d(side, 0, 0);
-            glVertex3d(side, 0, side);
-            glVertex3d(0, 0, side);
+        Vector3D normal = (b - a) * (d - a);
+        normal.normalize();
 
-            glVertex3d(side, 0, 0);
-            glVertex3d(side, side, 0);
-            glVertex3d(side, side, side);
-            glVertex3d(side, 0, side);
-            
-            glVertex3d(side, side, 0);
-            glVertex3d(0, side, 0);
-            glVertex3d(0, side, side);
-            glVertex3d(side, side, side);
-            
-            glVertex3d(0, side, 0);
-            glVertex3d(0, 0, 0);
-            glVertex3d(0, 0, side);
-            glVertex3d(0, side, side);
-            
-            glVertex3d(0, 0, side);
-            glVertex3d(side, 0, side);
-            glVertex3d(side, side, side);
-            glVertex3d(0, side, side);
-        glEnd();
-    }
-public:
-    Cube() {}
-    Cube(const Vector3D &bottom_lower_left_point, double side) {
-        this->bottom_lower_left_point = bottom_lower_left_point;
-        this->side = side;
-    }
+        t = (-(-Vector3D::dot(normal, a) + Vector3D::dot(normal, Ro))) / (Vector3D::dot(normal, Rd));
+        // cout << t << endl;
+        color = Color(0, 0, 0);
 
-    void draw() const {
-        glPushMatrix();
-        glTranslated(bottom_lower_left_point.getX(), bottom_lower_left_point.getY(), bottom_lower_left_point.getZ());
-        drawCube();
-        glPopMatrix();
-    }
+        Vector3D intersectionPoint = ray.getStart() + t * ray.getDir();
 
-    double intersect(const Ray &ray, Color &color, int level) const {
-        // implement
-        return -1.0;
+        if (!rectangleContainsPoint(a, b, c, d, intersectionPoint)) 
+            t = -1.0;
+
+        if (level == level_of_recursion + 1 || t < 0) return t;
+
+        Color intersectionPointColor = this->color;
+        color = intersectionPointColor;
+        
+        color = color * coEfficients.getAmbient();
+
+        double lambert = 0, phong = 0;
+
+        for (PointLight *pointLight : pointLights) {
+            Vector3D toSource = pointLight->getLightPos() - intersectionPoint;
+            double distance = toSource.magnitude();
+            toSource.normalize();
+            Ray SP(pointLight->getLightPos(), toSource * (-1));
+            Color dummyColor(1, 1, 1);
+            double tMin = 1e9;
+            for (Object *object : objects) {
+                double t = object->intersect(SP, dummyColor, level_of_recursion + 1);
+                if (t >= 0 && t < tMin) {
+                    tMin = t;
+                }
+            }
+            if (EQ(tMin, distance)) {
+                double scaling_factor = exp(- distance * distance * pointLight->getFalloffParameter());
+                lambert += Vector3D::dot(toSource, normal) * scaling_factor;
+                Vector3D L = toSource;
+                Vector3D R = L * (-1) + normal * (Vector3D::dot(L, normal)) * 2;
+                phong += pow(Vector3D::dot(R, ray.getDir() * (-1)), shine) * scaling_factor;
+                color = color + intersectionPointColor * coEfficients.getDiffuse() * lambert;
+                color = color + intersectionPointColor * coEfficients.getSpecular() * phong;
+            }
+        }
+
+        for (SpotLight *spotLight : spotLights) {
+            PointLight pointLight = spotLight->getPointLight();
+            Vector3D toSource = pointLight.getLightPos() - intersectionPoint;
+            double distance = toSource.magnitude();
+            toSource.normalize();
+ 
+            double angle = acos(Vector3D::dot(toSource * (-1), spotLight->getLightDirection()));
+
+            if (angle > spotLight->getCutoffAngle()) continue;
+            Ray SP(pointLight.getLightPos(), toSource * (-1));
+            Color dummyColor(1, 1, 1);
+            double tMin = 1e9;
+            for (Object *object : objects) {
+                double t = object->intersect(SP, dummyColor, level_of_recursion + 1);
+                if (t >= 0 && t < tMin) {
+                    tMin = t;
+                }
+            }
+            if (EQ(tMin, distance)) {
+                double scaling_factor = exp(- distance * distance * pointLight.getFalloffParameter());
+                lambert += Vector3D::dot(toSource, normal) * scaling_factor;
+                Vector3D L = toSource;
+                Vector3D R = L * (-1) + normal * (Vector3D::dot(L, normal)) * 2;
+                phong += pow(Vector3D::dot(R, ray.getDir() * (-1)), shine) * scaling_factor;
+                color = color + intersectionPointColor * coEfficients.getDiffuse() * lambert;
+                color = color + intersectionPointColor * coEfficients.getSpecular() * phong;
+            }
+        }
+        
+        if (reflectionOn) {
+            Vector3D toCamera = eye - intersectionPoint;
+            toCamera.normalize();
+
+            Vector3D reflectedVector = toCamera * (-1) + normal * (Vector3D::dot(toCamera, normal)) * 2;
+            reflectedVector.normalize();
+
+            Ray reflectedRay(intersectionPoint + 2 * reflectedVector, reflectedVector);
+
+            Color nextColor(0, 0, 0), nextDummyColor;
+            double nextTMin = 1e9;
+            Object *nextNearestObject = nullptr;
+            for (Object *nextObject : objects) {
+                double nextT = nextObject->intersect(reflectedRay, nextDummyColor, level_of_recursion + 1);
+                if (nextT >= 0 && nextT < nextTMin) {
+                    nextTMin = nextT;
+                    nextNearestObject = nextObject;
+                }
+            }
+            if (!nextNearestObject || nextTMin < 0 || nextTMin > 20000) return t;
+            nextTMin = nextNearestObject->intersect(reflectedRay, nextColor, level - 1);
+
+            color = color + nextColor * coEfficients.getReflection();
+        }
+        return t;
     }
 };
 
@@ -828,29 +1036,30 @@ public:
             }
         }
 
-        Vector3D toCamera = eye - intersectionPoint;
-        toCamera.normalize();
+        if (reflectionOn) {
+            Vector3D toCamera = eye - intersectionPoint;
+            toCamera.normalize();
 
-        Vector3D reflectedVector = toCamera * (-1) + normal * (Vector3D::dot(toCamera, normal)) * 2;
-        reflectedVector.normalize();
+            Vector3D reflectedVector = toCamera * (-1) + normal * (Vector3D::dot(toCamera, normal)) * 2;
+            reflectedVector.normalize();
 
-        Ray reflectedRay(intersectionPoint + 2 * reflectedVector, reflectedVector);
+            Ray reflectedRay(intersectionPoint + 0.0001 * reflectedVector, reflectedVector);
 
-        Color nextColor(0, 0, 0), nextDummyColor;
-        double nextTMin = 1e9;
-        Object *nextNearestObject = nullptr;
-        for (Object *nextObject : objects) {
-            double nextT = nextObject->intersect(reflectedRay, nextDummyColor, level_of_recursion + 1);
-            if (nextT >= 0 && nextT < nextTMin) {
-                nextTMin = nextT;
-                nextNearestObject = nextObject;
+            Color nextColor(0, 0, 0), nextDummyColor;
+            double nextTMin = 1e9;
+            Object *nextNearestObject = nullptr;
+            for (Object *nextObject : objects) {
+                double nextT = nextObject->intersect(reflectedRay, nextDummyColor, level_of_recursion + 1);
+                if (nextT >= 0 && nextT < nextTMin) {
+                    nextTMin = nextT;
+                    nextNearestObject = nextObject;
+                }
             }
-        }
-        if (!nextNearestObject || nextTMin < 0 || nextTMin > 20000) return t;
-        nextTMin = nextNearestObject->intersect(reflectedRay, nextColor, level - 1);
+            if (!nextNearestObject || nextTMin < 0 || nextTMin > 20000) return t;
+            nextTMin = nextNearestObject->intersect(reflectedRay, nextColor, level - 1);
 
-        color = color + nextColor * coEfficients.getReflection();
-
+            color = color + nextColor * coEfficients.getReflection();
+        }   
         return t;
     }
 };

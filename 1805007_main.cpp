@@ -66,12 +66,47 @@ void loadData() {
             int shine;
             ifs >> lowest_point >> width >> height >> color >> coEfficients >> shine;
 
-            Object *pyramid = new Pyramid(lowest_point, width, height);
-            pyramid->setColor(color);
-            pyramid->setCoEfficients(coEfficients);
-            pyramid->setShine(shine);
+            Vector3D a(0, 0, 0);
+            Vector3D b(width, 0, 0);
+            Vector3D c(width, width, 0);
+            Vector3D d(0, width, 0);
+            Vector3D e(width / 2, width / 2, height);
 
-            objects.push_back(pyramid);
+            a = a + lowest_point;
+            b = b + lowest_point;
+            c = c + lowest_point;
+            d = d + lowest_point;
+            e = e + lowest_point;
+
+            Object *rectangle = new Rectangle(a, b, c, d);
+            rectangle->setColor(color);
+            rectangle->setCoEfficients(coEfficients);
+            rectangle->setShine(shine);
+            objects.push_back(rectangle);
+
+            Object *triangle = new Triangle(a, b, e);
+            triangle->setColor(color);
+            triangle->setCoEfficients(coEfficients);
+            triangle->setShine(shine);
+            objects.push_back(triangle);
+
+            triangle = new Triangle(b, c, e);
+            triangle->setColor(color);
+            triangle->setCoEfficients(coEfficients);
+            triangle->setShine(shine);
+            objects.push_back(triangle);
+
+            triangle = new Triangle(c, d, e);
+            triangle->setColor(color);
+            triangle->setCoEfficients(coEfficients);
+            triangle->setShine(shine);
+            objects.push_back(triangle);
+
+            triangle = new Triangle(d, a, e);
+            triangle->setColor(color);
+            triangle->setCoEfficients(coEfficients);
+            triangle->setShine(shine);
+            objects.push_back(triangle);
         } else if (obj_type == "cube") {
             Vector3D bottom_lower_left_point;
             double side;
@@ -80,12 +115,110 @@ void loadData() {
             int shine;
             ifs >> bottom_lower_left_point >> side >> color >> coEfficients >> shine;
 
-            Object *cube = new Cube(bottom_lower_left_point, side);
-            cube->setColor(color);
-            cube->setCoEfficients(coEfficients);
-            cube->setShine(shine);
+            Vector3D a, b, c, d;
+            Object *rectangle;
 
-            objects.push_back(cube);
+            // 1
+            a = Vector3D(0, 0, 0);
+            b = Vector3D(side, 0, 0);
+            c = Vector3D(side, side, 0);
+            d = Vector3D(0, side, 0);
+
+            a = a + bottom_lower_left_point;
+            b = b + bottom_lower_left_point;
+            c = c + bottom_lower_left_point;
+            d = d + bottom_lower_left_point;
+
+            rectangle = new Rectangle(a, b, c, d);
+            rectangle->setColor(color);
+            rectangle->setCoEfficients(coEfficients);
+            rectangle->setShine(shine);
+            objects.push_back(rectangle);
+
+            // 2
+            a = Vector3D(0, 0, 0);
+            b = Vector3D(side, 0, 0);
+            c = Vector3D(side, 0, side);
+            d = Vector3D(0, 0, side);
+
+            a = a + bottom_lower_left_point;
+            b = b + bottom_lower_left_point;
+            c = c + bottom_lower_left_point;
+            d = d + bottom_lower_left_point;
+
+            rectangle = new Rectangle(a, b, c, d);
+            rectangle->setColor(color);
+            rectangle->setCoEfficients(coEfficients);
+            rectangle->setShine(shine);
+            objects.push_back(rectangle);
+
+            // 3
+            a = Vector3D(side, 0, 0);
+            b = Vector3D(side, side, 0);
+            c = Vector3D(side, side, side);
+            d = Vector3D(side, 0, side);
+
+            a = a + bottom_lower_left_point;
+            b = b + bottom_lower_left_point;
+            c = c + bottom_lower_left_point;
+            d = d + bottom_lower_left_point;
+
+            rectangle = new Rectangle(a, b, c, d);
+            rectangle->setColor(color);
+            rectangle->setCoEfficients(coEfficients);
+            rectangle->setShine(shine);
+            objects.push_back(rectangle);
+
+            // 4
+            a = Vector3D(side, side, 0);
+            b = Vector3D(0, side, 0);
+            c = Vector3D(0, side, side);
+            d = Vector3D(side, side, side);
+
+            a = a + bottom_lower_left_point;
+            b = b + bottom_lower_left_point;
+            c = c + bottom_lower_left_point;
+            d = d + bottom_lower_left_point;
+
+            rectangle = new Rectangle(a, b, c, d);
+            rectangle->setColor(color);
+            rectangle->setCoEfficients(coEfficients);
+            rectangle->setShine(shine);
+            objects.push_back(rectangle);
+
+            // 5
+            a = Vector3D(0, side, 0);
+            b = Vector3D(0, 0, 0);
+            c = Vector3D(0, 0, side);
+            d = Vector3D(0, side, side);
+
+            a = a + bottom_lower_left_point;
+            b = b + bottom_lower_left_point;
+            c = c + bottom_lower_left_point;
+            d = d + bottom_lower_left_point;
+
+            rectangle = new Rectangle(a, b, c, d);
+            rectangle->setColor(color);
+            rectangle->setCoEfficients(coEfficients);
+            rectangle->setShine(shine);
+            objects.push_back(rectangle);
+
+            // 6
+            a = Vector3D(0, 0, side);
+            b = Vector3D(side, 0, side);
+            c = Vector3D(side, side, side);
+            d = Vector3D(0, side, side);
+
+            a = a + bottom_lower_left_point;
+            b = b + bottom_lower_left_point;
+            c = c + bottom_lower_left_point;
+            d = d + bottom_lower_left_point;
+
+            rectangle = new Rectangle(a, b, c, d);
+            rectangle->setColor(color);
+            rectangle->setCoEfficients(coEfficients);
+            rectangle->setShine(shine);
+            objects.push_back(rectangle);
         }
     }
 
@@ -108,6 +241,7 @@ void loadData() {
         ifs >> pointLight >> lookingAt >> cutoffAngle;
 
         Vector3D lightDirection = lookingAt - pointLight.getLightPos();
+        lightDirection.normalize();
         cutoffAngle = RAD(cutoffAngle);
         SpotLight *spotLight = new SpotLight(pointLight, lightDirection, cutoffAngle);
         spotLights.push_back(spotLight);
@@ -123,15 +257,10 @@ void initGL() {
     glEnable(GL_DEPTH_TEST);   // Enable depth testing for z-culling
 }
 
-// // Global variables
-// GLfloat eyex = 0, eyey = -100, eyez = 0;
-// GLfloat centerx = 0, centery = 0, centerz = 0;
-// GLfloat upx = 0, upy = 0, upz = 1;
-
 int fileCount = 0;
 
-Vector3D eye(20, -100, 20);
-Vector3D center(20, 20, 20);
+Vector3D eye(40, -100, 40);
+Vector3D center(0, 0, 0);
 Vector3D u(0, 0, 1);
 Vector3D l, r;
 
@@ -169,8 +298,14 @@ void capture() {
                     nearestObject = object;
                 }
             }
-            if (!nearestObject || tMin < 0 || tMin > 20000) continue;
+            if (!nearestObject || tMin < 0) continue;
             tMin = nearestObject->intersect(ray, color, level_of_recursion);
+            if (color.getR() > 1) color.setR(1);
+            if (color.getG() > 1) color.setG(1);
+            if (color.getB() > 1) color.setB(1);
+            if (color.getR() < 0) color.setR(0);
+            if (color.getG() < 0) color.setG(0);
+            if (color.getB() < 0) color.setB(0);
             bmp.set_pixel(i, j, color.getR() * 255, color.getG() * 255, color.getB() * 255);
         }
     }
@@ -378,6 +513,7 @@ void openglMain(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
+    freopen("txt-out.txt", "w", stdout);
     loadData();
     openglMain(argc, argv);
     return 0;
