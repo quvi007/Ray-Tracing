@@ -268,9 +268,9 @@ Vector3D l, r;
 
 void calculateLR() {
     l = center - eye;
-    l = l * (1 / sqrt(Vector3D::dot(l, l)));
+    l.normalize();
     r = l * u;
-    r = r * (1 / sqrt(Vector3D::dot(r, r)));
+    r.normalize();
 }
 
 vector<vector<Color>> w_tex(256, vector<Color>(256, Color(1, 1, 1)));
@@ -539,6 +539,11 @@ void openglMain(int argc, char **argv) {
 
 int main(int argc, char **argv) {
     // freopen("out.txt", "w", stdout);
+    l = center - eye;
+    l.normalize();
+    u.normalize();
+    r = l * u;
+    u = r * l;
     loadData();
     loadTexture();
     openglMain(argc, argv);
