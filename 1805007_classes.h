@@ -1021,9 +1021,8 @@ public:
         
         color = color * coEfficients.getAmbient();
 
-        double lambert = 0, phong = 0;
-
         for (PointLight *pointLight : pointLights) {
+            double lambert;
             Vector3D toSource = pointLight->getLightPos() - intersectionPoint;
             double distance = toSource.magnitude();
             toSource.normalize();
@@ -1038,15 +1037,16 @@ public:
             }
             if (EQ(tMin, distance)) {
                 double scaling_factor = exp(- distance * distance * pointLight->getFalloffParameter());
-                lambert += Vector3D::dot(toSource, normal) * scaling_factor;
-                Vector3D L = toSource;
-                Vector3D R = L * (-1) + normal * (Vector3D::dot(L, normal)) * 2;
-                phong += pow(Vector3D::dot(R, ray.getDir() * (-1)), shine) * scaling_factor;
-                color = color + intersectionPointColor * coEfficients.getDiffuse() * lambert;
+                double dotProduct = Vector3D::dot(toSource, normal);
+                if (dotProduct > 0) {
+                    lambert = dotProduct * scaling_factor;
+                    color = color + intersectionPointColor * coEfficients.getDiffuse() * lambert;
+                }
             }
         }
 
         for (SpotLight *spotLight : spotLights) {
+            double lambert;
             PointLight pointLight = spotLight->getPointLight();
             Vector3D toSource = pointLight.getLightPos() - intersectionPoint;
             double distance = toSource.magnitude();
@@ -1066,11 +1066,11 @@ public:
             }
             if (EQ(tMin, distance)) {
                 double scaling_factor = exp(- distance * distance * pointLight.getFalloffParameter());
-                lambert += Vector3D::dot(toSource, normal) * scaling_factor;
-                Vector3D L = toSource;
-                Vector3D R = L * (-1) + normal * (Vector3D::dot(L, normal)) * 2;
-                phong += pow(Vector3D::dot(R, ray.getDir() * (-1)), shine) * scaling_factor;
-                color = color + intersectionPointColor * coEfficients.getDiffuse() * lambert;
+                double dotProduct = Vector3D::dot(toSource, normal);
+                if (dotProduct > 0) {
+                    lambert = dotProduct * scaling_factor;
+                    color = color + intersectionPointColor * coEfficients.getDiffuse() * lambert;
+                }
             }
         }
 
